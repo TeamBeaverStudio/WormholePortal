@@ -1,0 +1,369 @@
+// Copyright 2026 Team Beaver. All Rights Reserved.
+//
+// Authoritative material-agnostic ray evaluation used by the
+// SceneViewExtension production composite shader.
+// Keep carrier coverage, SceneDepth and output projection in their wrappers;
+// optical branch selection, LUT addressing and bending belong only here.
+
+#ifndef WP_RAY_COMMON_USH
+#define WP_RAY_COMMON_USH
+
+struct FWPRayResult
+{
+    float3 BentDirection;
+    float3 LinkedDirection;
+    float AnalyticProxyDistance;
+    float CameraRadius;
+    float CameraInsideProxy;
+    float CameraInsideCarrier;
+    float Impact;
+    float CriticalImpact;
+    float InsideOutward;
+    float RemoteBranch;
+    float TrappedCritical;
+    float UseOtherUniverse;
+    float BendAngle;
+    float PhaseGradientScale;
+    float GlobalLUTValidityBits;
+    float BranchLUTValidityBits;
+    float Valid;
+};
+
+float3 WPSafeNormalize(float3 Value, float3 Fallback)
+{
+    const float LengthSquared = dot(Value, Value);
+    return (LengthSquared > 1.0e-12f && all(isfinite(Value)))
+        ? Value * rsqrt(LengthSquared)
+        : Fallback;
+}
+
+float3 WPCenteredLUTUVW(Texture3D LUTTexture, float3 LogicalUVW)
+{
+    uint LUTWidth = 1;
+    uint LUTHeight = 1;
+    uint LUTDepth = 1;
+    LUTTexture.GetDimensions(LUTWidth, LUTHeight, LUTDepth);
+
+    const float3 LUTSize = max(
+        float3((float)LUTWidth, (float)LUTHeight, (float)LUTDepth), 1.0f.xxx);
+    return (saturate(LogicalUVW) * max(LUTSize - 1.0f.xxx, 0.0f.xxx) + 0.5f.xxx) / LUTSize;
+}
+
+float WPRaisedCosineU(float Impact01)
+{
+    return acos(clamp(1.0f - 2.0f * saturate(Impact01), -1.0f, 1.0f))
+        * 0.31830988618379067154f;
+}
+
+FWPRayResult WPEvaluateRay(
+    Texture3D LUTTexture,
+    SamplerState LUTTextureSampler,
+    float LUTZ,
+    float LUTEnabled,
+    float3 RayWS,
+    float3 CameraOffsetWS,
+    float ThroatRadius,
+    float ThroatLength,
+    float LensingFieldRadius,
+    float3 SelfX,
+    float3 SelfY,
+    float3 SelfZ,
+    float3 LinkedX,
+    float3 LinkedY,
+    float3 LinkedZ,
+    float3 ViewRightWS,
+    float3 ViewUpWS)
+{
+    const float EPS = 1.0e-6f;
+    const float CriticalTolerance = 4.0e-7f;
+
+    FWPRayResult Result;
+    Result.BentDirection = WPSafeNormalize(RayWS, float3(0.0f, 0.0f, 1.0f));
+    Result.LinkedDirection = Result.BentDirection;
+    Result.AnalyticProxyDistance = 0.0f;
+    Result.CameraRadius = 0.0f;
+    Result.CameraInsideProxy = 0.0f;
+    Result.CameraInsideCarrier = 0.0f;
+    Result.Impact = 0.0f;
+    Result.CriticalImpact = 0.0f;
+    Result.InsideOutward = 0.0f;
+    Result.RemoteBranch = 0.0f;
+    Result.TrappedCritical = 0.0f;
+    Result.UseOtherUniverse = 0.0f;
+    Result.BendAngle = 0.0f;
+    Result.PhaseGradientScale = 1.0f;
+    Result.GlobalLUTValidityBits = 0.0f;
+    Result.BranchLUTValidityBits = 0.0f;
+    Result.Valid = 0.0f;
+
+    RayWS = WPSafeNormalize(RayWS, float3(0.0f, 0.0f, 1.0f));
+    const float SafeThroatRadius = max(ThroatRadius, EPS);
+    const float SafeProxyRadius = max(LensingFieldRadius, SafeThroatRadius + 1.0f);
+    const float OuterProperEll = max(SafeProxyRadius - SafeThroatRadius, EPS);
+    const float MouthProperEll = min(max(ThroatLength * 0.5f, 0.0f), OuterProperEll);
+    const float TransitionProperLength = max(OuterProperEll - MouthProperEll, EPS);
+    const float MouthEll01 = saturate(MouthProperEll / OuterProperEll);
+
+    const float CameraRadius = length(CameraOffsetWS);
+    const float InsideProxy = (CameraRadius < SafeProxyRadius) ? 1.0f : 0.0f;
+    const float SafeCarrierRadius = SafeProxyRadius * 1.05f;
+    const float InsideCarrier = (CameraRadius < SafeCarrierRadius) ? 1.0f : 0.0f;
+    Result.CameraRadius = CameraRadius;
+    Result.CameraInsideProxy = InsideProxy;
+    Result.CameraInsideCarrier = InsideCarrier;
+
+    const float ProjectedCenter = dot(CameraOffsetWS, RayWS);
+    const float SphereDiscriminant = ProjectedCenter * ProjectedCenter
+        - (dot(CameraOffsetWS, CameraOffsetWS) - SafeProxyRadius * SafeProxyRadius);
+    if (!isfinite(SphereDiscriminant) || SphereDiscriminant < 0.0f)
+    {
+        return Result;
+    }
+
+    const float SphereRoot = sqrt(max(SphereDiscriminant, 0.0f));
+    const float NearSphereDistance = -ProjectedCenter - SphereRoot;
+    const float FarSphereDistance = -ProjectedCenter + SphereRoot;
+    const float AnalyticProxyDistance = (InsideProxy > 0.5f)
+        ? FarSphereDistance
+        : NearSphereDistance;
+    if (!isfinite(AnalyticProxyDistance) || AnalyticProxyDistance <= 1.0e-4f)
+    {
+        return Result;
+    }
+    Result.AnalyticProxyDistance = AnalyticProxyDistance;
+
+    const float3 AnalyticSurfaceOffsetWS = CameraOffsetWS + RayWS * AnalyticProxyDistance;
+    const float3 SurfaceRadialWS = WPSafeNormalize(
+        AnalyticSurfaceOffsetWS,
+        float3(0.0f, 0.0f, 1.0f));
+    const float HasCameraRadial = (CameraRadius > 1.0e-4f) ? 1.0f : 0.0f;
+    const float3 CameraRadialWS = (HasCameraRadial > 0.5f)
+        ? CameraOffsetWS / CameraRadius
+        : SurfaceRadialWS;
+    const float3 RadialWS = WPSafeNormalize(
+        lerp(SurfaceRadialWS, CameraRadialWS, InsideProxy),
+        SurfaceRadialWS);
+    const float IncidenceCos = clamp(dot(RayWS, RadialWS), -1.0f, 1.0f);
+    const float3 Tangent = RayWS - IncidenceCos * RadialWS;
+    const float TangentLengthSquared = dot(Tangent, Tangent);
+    const float Impact = sqrt(max(0.0f, 1.0f - IncidenceCos * IncidenceCos));
+
+    const float CameraProperEll01 = saturate((CameraRadius - SafeThroatRadius) / OuterProperEll);
+    const float RayStartEll01 = lerp(1.0f, CameraProperEll01, InsideProxy);
+    const float StartProperEll = RayStartEll01 * OuterProperEll;
+    // LUT Y is baked as transition-only proper distance. Using the full
+    // throat-to-outer coordinate here shifts every inside-proxy lookup whenever
+    // the constant-radius throat has non-zero length.
+    const float RayStartTransition01 = saturate(
+        (StartProperEll - MouthProperEll) / TransitionProperLength);
+    const float InsideOutward = InsideProxy * ((IncidenceCos >= 0.0f) ? 1.0f : 0.0f);
+
+    // T==0 has no variable-radius transition. The default encodes the exact
+    // constant-radius throat solution (critical impact 1, zero residual bend,
+    // both validity bits) and the branch avoids every texture dimension/sample op.
+    float4 GlobalLUTSample = float4(0.0f, 0.0f, 1.0f, 3.0f);
+    [branch]
+    if (LUTEnabled > 0.5f)
+    {
+        const float GlobalImpactU = WPRaisedCosineU(Impact);
+        const float3 GlobalLUTUVW = WPCenteredLUTUVW(
+            LUTTexture,
+            float3(GlobalImpactU, RayStartTransition01, LUTZ));
+        GlobalLUTSample = Texture3DSampleLevel(
+            LUTTexture,
+            LUTTextureSampler,
+            GlobalLUTUVW,
+            0.0f);
+    }
+
+    const float CriticalImpact = saturate(GlobalLUTSample.b);
+    float UseOtherUniverse = (InsideOutward < 0.5f && Impact < CriticalImpact) ? 1.0f : 0.0f;
+    const float InwardTrapped = (
+        InsideOutward < 0.5f && abs(Impact - CriticalImpact) <= CriticalTolerance)
+        ? 1.0f
+        : 0.0f;
+    const float OutwardTrapped = (
+        InsideOutward > 0.5f
+        && RayStartEll01 <= MouthEll01 + CriticalTolerance
+        && Impact >= 1.0f - CriticalTolerance)
+        ? 1.0f
+        : 0.0f;
+    float TrappedCritical = max(InwardTrapped, OutwardTrapped);
+
+    const float RemoteBranch = (Impact < CriticalImpact) ? 1.0f : 0.0f;
+    const float RemoteFraction = saturate(Impact / max(CriticalImpact, 1.0e-8f));
+    const float LocalFraction = saturate(
+        (Impact - CriticalImpact) / max(1.0f - CriticalImpact, 1.0e-8f));
+    const float BranchFraction = (RemoteBranch > 0.5f) ? RemoteFraction : LocalFraction;
+    const float BranchRaisedU = WPRaisedCosineU(BranchFraction);
+    float InwardLogicalU = (RemoteBranch > 0.5f)
+        ? 0.5f * BranchRaisedU
+        : 0.5f + 0.5f * BranchRaisedU;
+
+    float4 InwardLUTSample = float4(0.0f, 0.0f, 1.0f, 3.0f);
+    [branch]
+    if (LUTEnabled > 0.5f)
+    {
+        uint LUTWidth = 1;
+        uint LUTHeight = 1;
+        uint LUTDepth = 1;
+        LUTTexture.GetDimensions(LUTWidth, LUTHeight, LUTDepth);
+        const float2 LUTSize = max(float2((float)LUTWidth, (float)LUTHeight), 1.0f.xx);
+        const float HalfImpactSamples = floor(0.5f * LUTSize.x);
+        const float ImpactIndexDenominator = max(LUTSize.x - 1.0f, 1.0f);
+        const float RemoteMaxLogicalU = max(HalfImpactSamples - 1.0f, 0.0f)
+            / ImpactIndexDenominator;
+        const float LocalMinLogicalU = HalfImpactSamples / ImpactIndexDenominator;
+        InwardLogicalU = (RemoteBranch > 0.5f)
+            ? min(InwardLogicalU, RemoteMaxLogicalU)
+            : max(InwardLogicalU, LocalMinLogicalU);
+
+        const float3 InwardLUTUVW = WPCenteredLUTUVW(
+            LUTTexture,
+            float3(InwardLogicalU, RayStartTransition01, LUTZ));
+        InwardLUTSample = Texture3DSampleLevel(
+            LUTTexture,
+            LUTTextureSampler,
+            InwardLUTUVW,
+            0.0f);
+    }
+
+    // Alpha packs branch validity (+1 inward, +2 outward). Invalid tangent or
+    // separatrix samples are trapped/black, never a valid zero-angle ray.
+    const int GlobalValidity = (int)floor(GlobalLUTSample.a + 0.5f);
+    const int InwardValidity = (int)floor(InwardLUTSample.a + 0.5f);
+    const float OutwardLUTValid = ((GlobalValidity & 2) != 0) ? 1.0f : 0.0f;
+    const float InwardLUTValid = ((InwardValidity & 1) != 0) ? 1.0f : 0.0f;
+    const float SelectedLUTValid = (InsideOutward > 0.5f)
+        ? OutwardLUTValid
+        : InwardLUTValid;
+    TrappedCritical = max(TrappedCritical, 1.0f - SelectedLUTValid);
+
+    const float UseInwardThroat = (
+        InsideOutward < 0.5f && RemoteBranch > 0.5f && TrappedCritical < 0.5f)
+        ? 1.0f
+        : 0.0f;
+    const float UseOutwardThroat = (
+        InsideOutward > 0.5f && StartProperEll < MouthProperEll && TrappedCritical < 0.5f)
+        ? 1.0f
+        : 0.0f;
+    const float InwardThroatLength = MouthProperEll + min(StartProperEll, MouthProperEll);
+    const float OutwardThroatLength = max(MouthProperEll - StartProperEll, 0.0f);
+    const float TraversedThroatLength = UseInwardThroat * InwardThroatLength
+        + UseOutwardThroat * OutwardThroatLength;
+    const float ThroatQ = (UseOutwardThroat > 0.5f) ? Impact : RemoteFraction;
+    const float FiniteThroatQ = min(saturate(ThroatQ), 1.0f - CriticalTolerance);
+    const float ThroatDenominator = sqrt(max(
+        1.0f - FiniteThroatQ * FiniteThroatQ,
+        1.0e-12f));
+    const float AnalyticThroatAngle = TraversedThroatLength * FiniteThroatQ
+        / (SafeThroatRadius * ThroatDenominator);
+    const float ResidualBendAngle = (InsideOutward > 0.5f)
+        ? GlobalLUTSample.g
+        : InwardLUTSample.r;
+    const float BendAngle = ResidualBendAngle + AnalyticThroatAngle;
+
+    const float TwoPi = 6.28318530717958647692f;
+    const float WrappedBendAngle = fmod(BendAngle, TwoPi);
+    float BendSin = 0.0f;
+    float BendCos = 1.0f;
+    sincos(WrappedBendAngle, BendSin, BendCos);
+
+    UseOtherUniverse = (TrappedCritical > 0.5f) ? 2.0f : UseOtherUniverse;
+
+    const float3 FallbackAxis = (abs(RadialWS.z) < 0.999f)
+        ? float3(0.0f, 0.0f, 1.0f)
+        : float3(0.0f, 1.0f, 0.0f);
+    const float3 TangentDirection = (TangentLengthSquared > 1.0e-8f)
+        ? Tangent * rsqrt(TangentLengthSquared)
+        : WPSafeNormalize(cross(FallbackAxis, RadialWS), float3(1.0f, 0.0f, 0.0f));
+    const float3 BentWS = WPSafeNormalize(
+        BendCos * RadialWS + BendSin * TangentDirection,
+        RayWS);
+
+    const float2 UnwrappedPhaseDerivative = float2(ddx(BendAngle), ddy(BendAngle));
+    const float PhaseDerivativeFinite = all(isfinite(UnwrappedPhaseDerivative)) ? 1.0f : 0.0f;
+    const float UnwrappedPhaseFootprint = (PhaseDerivativeFinite > 0.5f)
+        ? max(abs(UnwrappedPhaseDerivative.x), abs(UnwrappedPhaseDerivative.y))
+        : 65536.0f;
+    const float WrappedDirectionFootprint = max(length(ddx(BentWS)), length(ddy(BentWS)));
+    const float PhaseFilterStart = 0.75f;
+    const float PhaseGradientScale = (UnwrappedPhaseFootprint > PhaseFilterStart)
+        ? clamp(
+            UnwrappedPhaseFootprint / max(WrappedDirectionFootprint, 1.0e-4f),
+            1.0f,
+            65536.0f)
+        : 1.0f;
+
+    const float3 SelfXAxis = WPSafeNormalize(SelfX, float3(1.0f, 0.0f, 0.0f));
+    const float3 SelfYAxis = WPSafeNormalize(SelfY, float3(0.0f, 1.0f, 0.0f));
+    const float3 SelfZAxis = WPSafeNormalize(SelfZ, float3(0.0f, 0.0f, 1.0f));
+    const float3 LinkedXAxis = WPSafeNormalize(LinkedX, float3(1.0f, 0.0f, 0.0f));
+    const float3 LinkedYAxis = WPSafeNormalize(LinkedY, float3(0.0f, 1.0f, 0.0f));
+    const float3 LinkedZAxis = WPSafeNormalize(LinkedZ, float3(0.0f, 0.0f, 1.0f));
+
+    const float3 SelfLocalDirection = WPSafeNormalize(float3(
+        dot(BentWS, SelfXAxis),
+        dot(BentWS, SelfYAxis),
+        dot(BentWS, SelfZAxis)), float3(0.0f, 0.0f, 1.0f));
+    float3 LinkedWS = -WPSafeNormalize(
+        SelfLocalDirection.x * LinkedXAxis
+            + SelfLocalDirection.y * LinkedYAxis
+            + SelfLocalDirection.z * LinkedZAxis,
+        BentWS);
+
+    const float3 SafeViewRightWS = WPSafeNormalize(ViewRightWS, float3(0.0f, 1.0f, 0.0f));
+    const float3 SelfLocalViewRight = WPSafeNormalize(float3(
+        dot(SafeViewRightWS, SelfXAxis),
+        dot(SafeViewRightWS, SelfYAxis),
+        dot(SafeViewRightWS, SelfZAxis)), float3(0.0f, 1.0f, 0.0f));
+    const float3 LinkedViewRightWS = WPSafeNormalize(
+        SelfLocalViewRight.x * LinkedXAxis
+            + SelfLocalViewRight.y * LinkedYAxis
+            + SelfLocalViewRight.z * LinkedZAxis,
+        LinkedYAxis);
+    LinkedWS = WPSafeNormalize(
+        LinkedWS - 2.0f * dot(LinkedWS, LinkedViewRightWS) * LinkedViewRightWS,
+        LinkedWS);
+
+    const float3 SafeViewUpWS = WPSafeNormalize(ViewUpWS, float3(0.0f, 0.0f, 1.0f));
+    const float3 SelfLocalViewUp = WPSafeNormalize(float3(
+        dot(SafeViewUpWS, SelfXAxis),
+        dot(SafeViewUpWS, SelfYAxis),
+        dot(SafeViewUpWS, SelfZAxis)), float3(0.0f, 0.0f, 1.0f));
+    const float3 LinkedViewUpWS = WPSafeNormalize(
+        SelfLocalViewUp.x * LinkedXAxis
+            + SelfLocalViewUp.y * LinkedYAxis
+            + SelfLocalViewUp.z * LinkedZAxis,
+        LinkedZAxis);
+    LinkedWS = WPSafeNormalize(
+        LinkedWS - 2.0f * dot(LinkedWS, LinkedViewUpWS) * LinkedViewUpWS,
+        LinkedWS);
+
+    const bool bFiniteResult = all(isfinite(BentWS))
+        && all(isfinite(LinkedWS))
+        && isfinite(CriticalImpact)
+        && isfinite(BendAngle)
+        && isfinite(PhaseGradientScale);
+    if (!bFiniteResult)
+    {
+        return Result;
+    }
+
+    Result.BentDirection = BentWS;
+    Result.LinkedDirection = LinkedWS;
+    Result.Impact = Impact;
+    Result.CriticalImpact = CriticalImpact;
+    Result.InsideOutward = InsideOutward;
+    Result.RemoteBranch = RemoteBranch;
+    Result.TrappedCritical = TrappedCritical;
+    Result.UseOtherUniverse = UseOtherUniverse;
+    Result.BendAngle = BendAngle;
+    Result.PhaseGradientScale = PhaseGradientScale;
+    Result.GlobalLUTValidityBits = GlobalLUTSample.a;
+    Result.BranchLUTValidityBits = InwardLUTSample.a;
+    Result.Valid = 1.0f;
+    return Result;
+}
+
+#endif // WP_RAY_COMMON_USH

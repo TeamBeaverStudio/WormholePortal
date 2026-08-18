@@ -1,0 +1,41 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Separate)
+SCREEN_PASS_TEXTURE_VIEWPORT(Coverage)
+SCREEN_PASS_TEXTURE_VIEWPORT(Clean)
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
+
+Texture2D SeparateTexture;
+SamplerState SeparateSampler;
+Texture2D CoverageTexture;
+SamplerState CoverageSampler;
+Texture2D CleanTexture;
+SamplerState CleanSampler;
+
+float2 WPViewportUVToTextureUV(float2 ViewportUV, float2 ViewportSize, int2 ViewportMin, float2 ExtentInverse, float2 BilinearMin, float2 BilinearMax)
+{
+    return clamp((ViewportUV * ViewportSize + float2(ViewportMin)) * ExtentInverse, BilinearMin, BilinearMax);
+}
+
+void MainPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+{
+    const float2 OutputViewportUV = (SvPosition.xy - float2(Output_ViewportMin)) * Output_ViewportSizeInverse;
+    const float2 SeparateUV = WPViewportUVToTextureUV(OutputViewportUV, Separate_ViewportSize, Separate_ViewportMin, Separate_ExtentInverse, Separate_UVViewportBilinearMin, Separate_UVViewportBilinearMax);
+    const float2 CoverageUV = WPViewportUVToTextureUV(OutputViewportUV, Coverage_ViewportSize, Coverage_ViewportMin, Coverage_ExtentInverse, Coverage_UVViewportBilinearMin, Coverage_UVViewportBilinearMax);
+    const float4 SeparateColor = SeparateTexture.SampleLevel(SeparateSampler, SeparateUV, 0.0f);
+    const float CoverageValue = saturate(CoverageTexture.SampleLevel(CoverageSampler, CoverageUV, 0.0f).r);
+    OutColor = lerp(SeparateColor, float4(0.0f, 0.0f, 0.0f, 1.0f), CoverageValue);
+}
+
+void ComposeCleanHistoryPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+{
+    const float2 OutputViewportUV = (SvPosition.xy - float2(Output_ViewportMin)) * Output_ViewportSizeInverse;
+    const float2 CleanUV = WPViewportUVToTextureUV(OutputViewportUV, Clean_ViewportSize, Clean_ViewportMin, Clean_ExtentInverse, Clean_UVViewportBilinearMin, Clean_UVViewportBilinearMax);
+    const float2 SeparateUV = WPViewportUVToTextureUV(OutputViewportUV, Separate_ViewportSize, Separate_ViewportMin, Separate_ExtentInverse, Separate_UVViewportBilinearMin, Separate_UVViewportBilinearMax);
+    const float4 CleanColor = CleanTexture.SampleLevel(CleanSampler, CleanUV, 0.0f);
+    const float4 SeparateColor = SeparateTexture.SampleLevel(SeparateSampler, SeparateUV, 0.0f);
+    OutColor = float4(CleanColor.rgb * SeparateColor.a + SeparateColor.rgb, CleanColor.a);
+}

@@ -1,0 +1,47 @@
+// Copyright 2026 Team Beaver. All Rights Reserved.
+
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(CleanMain)
+SCREEN_PASS_TEXTURE_VIEWPORT(Prepared)
+SCREEN_PASS_TEXTURE_VIEWPORT(Coverage)
+SCREEN_PASS_TEXTURE_VIEWPORT(VelocityOverride)
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
+
+Texture2D CleanMainTexture;
+SamplerState CleanMainSampler;
+Texture2D PreparedTexture;
+SamplerState PreparedSampler;
+Texture2D CoverageTexture;
+SamplerState CoverageSampler;
+Texture2D VelocityOverrideTexture;
+SamplerState VelocityOverrideSampler;
+float PreparedToMainPreExposureScale;
+
+float2 WPViewportUVToTextureUV(float2 ViewportUV, float2 ViewportSize, int2 ViewportMin, float2 ExtentInverse, float2 BilinearMin, float2 BilinearMax)
+{
+    return clamp((ViewportUV * ViewportSize + float2(ViewportMin)) * ExtentInverse, BilinearMin, BilinearMax);
+}
+
+void MainPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+{
+    const float2 OutputViewportUV = (SvPosition.xy - float2(Output_ViewportMin)) * Output_ViewportSizeInverse;
+    const float2 CleanUV = WPViewportUVToTextureUV(OutputViewportUV, CleanMain_ViewportSize, CleanMain_ViewportMin, CleanMain_ExtentInverse, CleanMain_UVViewportBilinearMin, CleanMain_UVViewportBilinearMax);
+    const float2 PreparedUV = WPViewportUVToTextureUV(OutputViewportUV, Prepared_ViewportSize, Prepared_ViewportMin, Prepared_ExtentInverse, Prepared_UVViewportBilinearMin, Prepared_UVViewportBilinearMax);
+    const float2 CoverageUV = WPViewportUVToTextureUV(OutputViewportUV, Coverage_ViewportSize, Coverage_ViewportMin, Coverage_ExtentInverse, Coverage_UVViewportBilinearMin, Coverage_UVViewportBilinearMax);
+    const float4 CleanMainColor = CleanMainTexture.SampleLevel(CleanMainSampler, CleanUV, 0.0f);
+    const float3 PreparedInMainPreExposure = PreparedTexture.SampleLevel(PreparedSampler, PreparedUV, 0.0f).rgb * PreparedToMainPreExposureScale;
+    const float CoverageValue = saturate(CoverageTexture.SampleLevel(CoverageSampler, CoverageUV, 0.0f).r);
+    OutColor = float4(lerp(CleanMainColor.rgb, PreparedInMainPreExposure, CoverageValue), CleanMainColor.a);
+}
+
+void VelocityPatchPS(float4 SvPosition : SV_POSITION, out float4 OutVelocity : SV_Target0)
+{
+    const float2 OutputViewportUV = (SvPosition.xy - float2(Output_ViewportMin)) * Output_ViewportSizeInverse;
+    const float2 CoverageUV = WPViewportUVToTextureUV(OutputViewportUV, Coverage_ViewportSize, Coverage_ViewportMin, Coverage_ExtentInverse, Coverage_UVViewportBilinearMin, Coverage_UVViewportBilinearMax);
+    clip(CoverageTexture.SampleLevel(CoverageSampler, CoverageUV, 0.0f).r - 0.5f);
+    const float2 VelocityUV = WPViewportUVToTextureUV(OutputViewportUV, VelocityOverride_ViewportSize, VelocityOverride_ViewportMin, VelocityOverride_ExtentInverse, VelocityOverride_UVViewportBilinearMin, VelocityOverride_UVViewportBilinearMax);
+    OutVelocity = VelocityOverrideTexture.SampleLevel(VelocityOverrideSampler, VelocityUV, 0.0f);
+}

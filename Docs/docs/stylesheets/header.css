@@ -1,0 +1,62 @@
+/*
+ * Header utilities
+ *
+ * Search is the primary header action. The palette and language selectors
+ * follow it as compact utility buttons. Repository UI is intentionally not
+ * displayed because the plugin is distributed through Fab.
+ */
+
+.md-header__inner > .md-search,
+.md-header__inner > .md-header__button[for="__search"] {
+  order: 10;
+}
+
+.md-header__inner > .md-header__option {
+  order: 20;
+  margin-inline-start: 0.35rem;
+}
+
+.md-header__source {
+  display: none !important;
+}
+
+.md-header__button[for="__search"],
+.md-header__option .md-header__button:not([hidden]) {
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  margin: 0.2rem 0;
+  padding: 0.4rem;
+  border-radius: 0.45rem;
+  background-color: var(--md-default-fg-color--lightest);
+  opacity: 1;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.md-header__button[for="__search"]:hover,
+.md-header__button[for="__search"]:focus-visible,
+.md-header__option .md-header__button:not([hidden]):hover,
+.md-header__option .md-header__button:not([hidden]):focus-visible {
+  background-color: var(--md-default-fg-color--lighter);
+}
+
+@media screen and (min-width: 60em) {
+  .md-search {
+    flex-shrink: 0;
+  }
+
+  .md-search__button {
+    width: clamp(10rem, 18vw, 15rem);
+    height: 1.8rem;
+    border-radius: 0.45rem;
+  }
+}
+
+@media screen and (max-width: 59.984375em) {
+  .md-header__inner > .md-header__option {
+    margin-inline-start: 0.25rem;
+  }
+}

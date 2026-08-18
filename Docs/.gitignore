@@ -1,0 +1,6 @@
+.venv/
+site/
+site-ko/
+.preview/
+.cache/
+__pycache__/

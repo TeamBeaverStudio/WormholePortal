@@ -1,0 +1,490 @@
+// Copyright 2026 Team Beaver. All Rights Reserved.
+
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+#include "/Engine/Private/VelocityCommon.ush"
+#include "WPRayCommon.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Input)
+SCREEN_PASS_TEXTURE_VIEWPORT(Base)
+SCREEN_PASS_TEXTURE_VIEWPORT(Foreground)
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+Texture2D BaseSceneColorTexture;
+SamplerState BaseSceneColorSampler;
+Texture2D ForegroundSceneColorTexture;
+SamplerState ForegroundSceneColorSampler;
+Texture2D SceneDepthTexture;
+SamplerState SceneDepthSampler;
+uint SceneMode;
+float3 CurrentPreViewTranslation;
+float4x4 PreviousWorldToClip;
+float4x4 PreviousScreenToWorld;
+float PreviousSceneColorPreExposureScale;
+float PreviousSceneColorValid;
+SCREEN_PASS_TEXTURE_VIEWPORT(PreviousDepth)
+Texture2D PreviousSceneDepthTexture;
+SamplerState PreviousSceneDepthSampler;
+Texture3D RayLUTTexture;
+SamplerState RayLUTSampler;
+float RayLUTZ;
+float RayLUTEnabled;
+TextureCube LocalCubeTexture;
+SamplerState LocalCubeSampler;
+TextureCube LinkedCubeTexture;
+SamplerState LinkedCubeSampler;
+
+float3 PortalCenterTranslated;
+float PortalRadiusCm;
+float ThroatLengthCm;
+float ProxyRadiusCm;
+float MetricOuterRadiusCm;
+float DepthBiasCm;
+float3 SelfX;
+float3 SelfY;
+float3 SelfZ;
+float3 LinkedX;
+float3 LinkedY;
+float3 LinkedZ;
+
+bool WPSelectSphereHit(
+    float3 RayOrigin,
+    float3 RayDirection,
+    float3 SphereCenter,
+    float SphereRadius,
+    out float SelectedT,
+    out bool bCameraInside,
+    out float2 HitDistances)
+{
+    const float3 OriginToCenter = RayOrigin - SphereCenter;
+    const float RadiusSquared = SphereRadius * SphereRadius;
+    const float OriginDistanceSquared = dot(OriginToCenter, OriginToCenter);
+    bCameraInside = OriginDistanceSquared < RadiusSquared;
+
+    const float ProjectedOrigin = dot(OriginToCenter, RayDirection);
+    const float Discriminant = ProjectedOrigin * ProjectedOrigin
+        - (OriginDistanceSquared - RadiusSquared);
+    if (Discriminant < 0.0f)
+    {
+        SelectedT = 0.0f;
+        HitDistances = 0.0f;
+        return false;
+    }
+
+    const float Root = sqrt(max(Discriminant, 0.0f));
+    HitDistances = float2(-ProjectedOrigin - Root, -ProjectedOrigin + Root);
+    SelectedT = bCameraInside ? HitDistances.y : HitDistances.x;
+    return SelectedT > 1.0e-4f;
+}
+
+float3 WPPrepareCubeDirection(float3 Direction)
+{
+    return WPSafeNormalize(Direction, float3(0.0f, 0.0f, 1.0f));
+}
+
+float3 WPConvertCubeToMainPreExposure(float3 CubeLinearRGB)
+{
+    // SceneColorHDRNoAlpha disables capture post processing, so the cube is
+    // linear HDR with PreExposure=1. The destination main SceneColor is already
+    // in the main view's pre-exposed domain and will be tonemapped exactly once.
+    return CubeLinearRGB * ResolvedView.PreExposure;
+}
+
+float3 WPSampleLocalCube(float3 Direction, float PhaseGradientScale)
+{
+    const float3 SafeDirection = WPPrepareCubeDirection(Direction);
+    const float ConservativeScale = clamp(PhaseGradientScale, 1.0f, 65536.0f);
+    const float3 CubeLinearRGB = TextureCubeSampleGrad(
+        LocalCubeTexture,
+        LocalCubeSampler,
+        SafeDirection,
+        ddx(SafeDirection) * ConservativeScale,
+        ddy(SafeDirection) * ConservativeScale).rgb;
+    return WPConvertCubeToMainPreExposure(CubeLinearRGB);
+}
+
+float3 WPSampleLinkedCube(float3 Direction, float PhaseGradientScale)
+{
+    const float3 SafeDirection = WPPrepareCubeDirection(Direction);
+    const float ConservativeScale = clamp(PhaseGradientScale, 1.0f, 65536.0f);
+    const float3 CubeLinearRGB = TextureCubeSampleGrad(
+        LinkedCubeTexture,
+        LinkedCubeSampler,
+        SafeDirection,
+        ddx(SafeDirection) * ConservativeScale,
+        ddy(SafeDirection) * ConservativeScale).rgb;
+    return WPConvertCubeToMainPreExposure(CubeLinearRGB);
+}
+
+struct FWPLocalLensResult
+{
+    float3 Color;
+    float ProjectionValid;
+    float SubpixelIdentity;
+    float UsesProjectedSceneColor;
+    float2 ProjectedScreenPosition;
+};
+
+FWPLocalLensResult WPResolveLocalLens(
+    FWPRayResult RayResult,
+    float2 CurrentViewportUV,
+    float3 CurrentCleanSceneColor)
+{
+    FWPLocalLensResult Result;
+    Result.Color = 0.0f;
+    Result.ProjectionValid = 0.0f;
+    Result.SubpixelIdentity = 0.0f;
+    Result.UsesProjectedSceneColor = 0.0f;
+    Result.ProjectedScreenPosition = ViewportUVToScreenPos(CurrentViewportUV);
+    if (SceneMode != 3u)
+    {
+        Result.Color = WPSampleLocalCube(
+            RayResult.BentDirection,
+            RayResult.PhaseGradientScale);
+    }
+
+    // First project a finite point to locate the previous-frame history ray.
+    // Then use that ray's stored depth to reconstruct the actual history world
+    // position. This preserves per-pixel parallax during camera translation;
+    // the finite metric distance remains only the bootstrap/fallback estimate.
+    const float3 ProjectedTranslatedWS = ResolvedView.TranslatedWorldCameraOrigin
+        + RayResult.BentDirection * max(MetricOuterRadiusCm, 100.0f);
+    const bool bPreparedLayer = SceneMode != 0u;
+    const float3 ProjectedWorldWS = ProjectedTranslatedWS - CurrentPreViewTranslation;
+    const float4 BootstrapClip = bPreparedLayer
+        ? mul(float4(ProjectedWorldWS, 1.0f), PreviousWorldToClip)
+        : mul(float4(ProjectedTranslatedWS, 1.0f), ResolvedView.TranslatedWorldToClip);
+    const float SafeBootstrapW = max(abs(BootstrapClip.w), 1.0e-6f);
+    const float2 BootstrapScreenPosition = BootstrapClip.xy / SafeBootstrapW;
+    const float2 BootstrapViewportUV = ScreenPosToViewportUV(BootstrapScreenPosition);
+    const float2 SafeBootstrapViewportUV = all(isfinite(BootstrapViewportUV)) ? saturate(BootstrapViewportUV) : 0.5f;
+    const float2 PreviousDepthUV = clamp(
+        (SafeBootstrapViewportUV * PreviousDepth_ViewportSize + float2(PreviousDepth_ViewportMin))
+            * PreviousDepth_ExtentInverse,
+        PreviousDepth_UVViewportBilinearMin,
+        PreviousDepth_UVViewportBilinearMax);
+    const float PreviousDeviceZ = PreviousSceneDepthTexture.SampleLevel(
+        PreviousSceneDepthSampler,
+        PreviousDepthUV,
+        0.0f).r;
+    const float PreviousSceneDepthCm = ConvertFromDeviceZ(PreviousDeviceZ);
+    const float3 ReconstructedHistoryWorldWS = mul(
+        float4(GetScreenPositionForProjectionType(BootstrapScreenPosition, PreviousSceneDepthCm), PreviousSceneDepthCm, 1.0f),
+        PreviousScreenToWorld).xyz;
+    const float3 CurrentCameraWorldWS = ResolvedView.TranslatedWorldCameraOrigin - CurrentPreViewTranslation;
+    const float DepthMatchedRayT = dot(
+        ReconstructedHistoryWorldWS - CurrentCameraWorldWS,
+        RayResult.BentDirection);
+    const float3 DepthMatchedWorldWS = CurrentCameraWorldWS
+        + RayResult.BentDirection * max(DepthMatchedRayT, 1.0f);
+    const float4 DepthMatchedClip = mul(float4(DepthMatchedWorldWS, 1.0f), PreviousWorldToClip);
+    // Reversed-Z clear depth represents sky/infinite background. Translation
+    // must not introduce parallax there, so transform the bent world direction
+    // with w=0 and preserve only the previous camera's rotation/projection.
+    const float4 InfiniteDirectionClip = mul(
+        float4(RayResult.BentDirection, 0.0f),
+        PreviousWorldToClip);
+    const float PreviousDepthHasGeometry = PreviousDeviceZ > 1.0e-7f ? 1.0f : 0.0f;
+    const float4 ProjectedClip = bPreparedLayer
+        ? lerp(InfiniteDirectionClip, DepthMatchedClip, PreviousDepthHasGeometry)
+        : BootstrapClip;
+    const float SafeProjectedW = max(abs(ProjectedClip.w), 1.0e-6f);
+    const float2 ProjectedScreenPosition = ProjectedClip.xy / SafeProjectedW;
+    Result.ProjectedScreenPosition = all(isfinite(ProjectedScreenPosition))
+        ? ProjectedScreenPosition
+        : ViewportUVToScreenPos(CurrentViewportUV);
+    
+    const float2 ProjectedViewportUVJittered = ScreenPosToViewportUV(ProjectedScreenPosition);
+    const float2 ProjectionJitterViewportUV = float2(0.5f, -0.5f) * ResolvedView.TemporalAAJitter.xy;
+    // Prepared history was rasterized with PreviousWorldToClip, including that
+    // frame's projection jitter. Its projected UV already addresses the matching
+    // history texel. Removing the current frame's jitter here applies an unrelated
+    // camera-space offset and makes motion visible at the wormhole boundary.
+    const float2 ProjectedViewportUV = bPreparedLayer
+        ? ProjectedViewportUVJittered
+        : ProjectedViewportUVJittered - ProjectionJitterViewportUV;
+    const float ProjectionFinite = (
+        all(isfinite(BootstrapClip))
+        && all(isfinite(ProjectedClip))
+        && all(isfinite(ProjectedViewportUV))
+        && (PreviousDepthHasGeometry < 0.5f
+            || (isfinite(PreviousSceneDepthCm) && PreviousSceneDepthCm > 0.0f && DepthMatchedRayT > 0.0f))) ? 1.0f : 0.0f;
+    const float ProjectionInFront = (ProjectedClip.w > 1.0e-6f) ? 1.0f : 0.0f;
+    const float ProjectionInViewport = (
+        all(ProjectedViewportUV >= 0.0f)
+        && all(ProjectedViewportUV <= 1.0f)) ? 1.0f : 0.0f;
+    const float LocalFiniteRay = (
+        RayResult.UseOtherUniverse < 0.5f
+        && RayResult.TrappedCritical < 0.5f) ? 1.0f : 0.0f;
+    Result.ProjectionValid = LocalFiniteRay
+        * ProjectionFinite
+        * ProjectionInFront
+        * ProjectionInViewport
+        * (bPreparedLayer ? PreviousSceneColorValid : 1.0f);
+
+    // Keep even invalid coordinates finite before issuing the texture sample.
+    // This avoids relying on branch flattening or undefined non-finite UV behavior.
+    const float2 SafeProjectedViewportUV = (ProjectionFinite > 0.5f)
+        ? saturate(ProjectedViewportUV)
+        : 0.5f;
+    // Multiple owned endpoints may be chained. Always sample finite local lens
+    // rays from the immutable pre-portal scene, never from an earlier endpoint's
+    // composite output, or a later endpoint could recursively lens an earlier one.
+    const float2 ProjectedBaseUV = clamp(
+        (SafeProjectedViewportUV * Base_ViewportSize + float2(Base_ViewportMin))
+            * Base_ExtentInverse,
+        Base_UVViewportBilinearMin,
+        Base_UVViewportBilinearMax);
+    float3 ProjectedSceneColor = 0.0f;
+    if (SceneMode != 3u)
+    {
+        ProjectedSceneColor = BaseSceneColorTexture.SampleLevel(
+            BaseSceneColorSampler,
+            ProjectedBaseUV,
+            0.0f).rgb * (bPreparedLayer ? PreviousSceneColorPreExposureScale : 1.0f);
+    }
+
+    const float2 ViewportPixelSize = max(Base_ViewportSize, 1.0f);
+    const float ProjectedPixelDisplacement = length(
+        (SafeProjectedViewportUV - CurrentViewportUV) * ViewportPixelSize);
+    Result.SubpixelIdentity = (
+        Result.ProjectionValid > 0.5f
+        && ProjectedPixelDisplacement <= 0.5f) ? 1.0f : 0.0f;
+
+    // SceneColor reprojection is only valid outside the analytic proxy. While
+    // the camera is inside, use the local cubemap for every local-universe ray
+    // so the viewport-shaped projection boundary cannot appear in the image.
+    Result.UsesProjectedSceneColor = Result.ProjectionValid
+        * (1.0f - RayResult.CameraInsideProxy);
+    if (Result.UsesProjectedSceneColor > 0.5f && SceneMode != 3u)
+    {
+        // A subpixel identity projection leaves the incoming pixel untouched.
+        Result.Color = (Result.SubpixelIdentity > 0.5f)
+            ? CurrentCleanSceneColor
+            : ProjectedSceneColor;
+    }
+    return Result;
+}
+
+float WPGetOtherUniverse(FWPRayResult RayResult)
+{
+    const float InsideThroatLinked = RayResult.CameraInsideProxy
+        * ((RayResult.CameraRadius <= PortalRadiusCm) ? 1.0f : 0.0f);
+    return max(saturate(RayResult.UseOtherUniverse), InsideThroatLinked);
+}
+
+float3 WPComposite(float3 LocalLensColor, FWPRayResult RayResult)
+{
+    const float3 RemoteColor = WPSampleLinkedCube(
+        RayResult.LinkedDirection,
+        RayResult.PhaseGradientScale);
+    // At the throat center the camera radial is undefined. Force the linked
+    // endpoint inside the authored throat, but switch at the boundary without
+    // blending so transit never mixes the local and linked universes.
+    const float OtherUniverse = WPGetOtherUniverse(RayResult);
+    const float TrappedCritical = (RayResult.UseOtherUniverse > 1.5f) ? 1.0f : 0.0f;
+    const float3 Result = lerp(LocalLensColor, RemoteColor, OtherUniverse);
+    return lerp(Result, 0.0f, TrappedCritical);
+}
+
+void MainPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+{
+    ResolvedView = ResolveView();
+
+    const float2 OutputViewportUV =
+        (SvPosition.xy - float2(Output_ViewportMin)) * Output_ViewportSizeInverse;
+    const float2 GeometryViewportUV = OutputViewportUV
+        + float2(0.5f, -0.5f) * ResolvedView.TemporalAAJitter.xy;
+    const float2 InputUV = clamp(
+        (OutputViewportUV * Input_ViewportSize + float2(Input_ViewportMin)) * Input_ExtentInverse,
+        Input_UVViewportBilinearMin,
+        Input_UVViewportBilinearMax);
+    const float4 SceneColor = InputTexture.SampleLevel(InputSampler, InputUV, 0.0f);
+    OutColor = SceneColor;
+    float PortalVisibility = 1.0f;
+
+    const float2 ScreenPosition = ViewportUVToScreenPos(GeometryViewportUV);
+    const float3 RayOrigin = ResolvedView.TranslatedWorldCameraOrigin;
+    const float3 RayDirection = normalize(
+        ScreenVectorFromScreenRect(float4(ScreenPosition, 1.0f, 0.0f), ResolvedView));
+
+    float OuterHitT = 0.0f;
+    bool bCameraInsideOuter = false;
+    float2 OuterHitDistances = 0.0f;
+    if (!WPSelectSphereHit(
+        RayOrigin,
+        RayDirection,
+        PortalCenterTranslated,
+        ProxyRadiusCm,
+        OuterHitT,
+        bCameraInsideOuter,
+        OuterHitDistances))
+    {
+        return;
+    }
+
+    const float3 CameraOffset = RayOrigin - PortalCenterTranslated;
+    const float CoverageCarrierRadius = ProxyRadiusCm * 1.05f;
+    const bool bUseFarCoverageRoot = dot(CameraOffset, CameraOffset)
+        < CoverageCarrierRadius * CoverageCarrierRadius;
+    const float CoverageHitT = bUseFarCoverageRoot ? OuterHitDistances.y : OuterHitDistances.x;
+    if (CoverageHitT <= 1.0e-4f)
+    {
+        return;
+    }
+
+    const float3 CoverageHitTranslated = RayOrigin + RayDirection * CoverageHitT;
+    const float4 CoverageHitClip = mul(
+        float4(CoverageHitTranslated, 1.0f),
+        ResolvedView.TranslatedWorldToClip);
+    if (CoverageHitClip.w <= 0.0f || CoverageHitClip.z > CoverageHitClip.w)
+    {
+        return;
+    }
+
+    const bool bPreparedLayer = SceneMode != 0u;
+    if (!bPreparedLayer && !bCameraInsideOuter)
+    {
+        const float2 SceneDepthUV = clamp(
+            ViewportUVToBufferUV(GeometryViewportUV),
+            ResolvedView.BufferBilinearUVMinMax.xy,
+            ResolvedView.BufferBilinearUVMinMax.zw);
+        const float DeviceZ = SceneDepthTexture.SampleLevel(
+            SceneDepthSampler,
+            SceneDepthUV,
+            0.0f).r;
+        const float SceneDepthCm = ConvertFromDeviceZ(DeviceZ);
+        const float3 OuterHitTranslated = RayOrigin + RayDirection * OuterHitT;
+        const float4 OuterHitClip = mul(
+            float4(OuterHitTranslated, 1.0f),
+            ResolvedView.TranslatedWorldToClip);
+        
+        // Soft Depth Visibility
+        const float DepthDeltaCm = SceneDepthCm + DepthBiasCm - OuterHitClip.w;
+        const float DepthDeltaDx = abs(ddx(DepthDeltaCm));
+        const float DepthDeltaDy = abs(ddy(DepthDeltaCm));
+        const float AutoFeatherCm = DepthDeltaDx + DepthDeltaDy;
+        const float DepthFeatherCm = clamp(max(AutoFeatherCm, 2.0f), 2.0f, 50.0f);
+        const float DepthVisibility = smoothstep(-DepthFeatherCm, DepthFeatherCm, DepthDeltaCm);
+
+        if (DepthVisibility <= 0.001f)
+        {
+            return;
+        }
+
+        PortalVisibility *= DepthVisibility;
+    }
+
+    const FWPRayResult RayResult = WPEvaluateRay(
+        RayLUTTexture,
+        RayLUTSampler,
+        RayLUTZ,
+        RayLUTEnabled,
+        RayDirection,
+        CameraOffset,
+        PortalRadiusCm,
+        ThroatLengthCm,
+        ProxyRadiusCm,
+        SelfX,
+        SelfY,
+        SelfZ,
+        LinkedX,
+        LinkedY,
+        LinkedZ,
+        ResolvedView.ViewRight,
+        ResolvedView.ViewUp);
+    if (RayResult.Valid < 0.5f)
+    {
+        return;
+    }
+
+    if (SceneMode == 2u)
+    {
+        const float2 VisibilityUV = clamp(
+            (OutputViewportUV * Base_ViewportSize + float2(Base_ViewportMin)) * Base_ExtentInverse,
+            Base_UVViewportBilinearMin,
+            Base_UVViewportBilinearMax);
+        const float OriginalInverseOpacity = BaseSceneColorTexture.SampleLevel(
+            BaseSceneColorSampler,
+            VisibilityUV,
+            0.0f).a;
+        // Production already gives the wormhole the whole analytic volume while
+        // the camera is inside. Mirror that ownership in the prepared path so
+        // main-view opaque geometry cannot survive through the far proxy surface.
+        const float ForegroundVisibility = bCameraInsideOuter
+            ? 1.0f
+            : step(1.0e-4f, OriginalInverseOpacity);
+        const float EndpointCoverage = PortalVisibility * ForegroundVisibility;
+        const float AccumulatedCoverage = max(SceneColor.r, EndpointCoverage);
+        OutColor = AccumulatedCoverage.xxxx;
+        return;
+    }
+
+    float3 CurrentCleanSceneColor = 0.0f;
+    if (SceneMode != 3u)
+    {
+        const float2 CurrentBaseUV = clamp(
+            (OutputViewportUV * Base_ViewportSize + float2(Base_ViewportMin)) * Base_ExtentInverse,
+            Base_UVViewportBilinearMin,
+            Base_UVViewportBilinearMax);
+        const float3 PreviousCleanSceneColor = BaseSceneColorTexture.SampleLevel(
+            BaseSceneColorSampler,
+            CurrentBaseUV,
+            0.0f).rgb * PreviousSceneColorPreExposureScale;
+        CurrentCleanSceneColor = bPreparedLayer ? PreviousCleanSceneColor : SceneColor.rgb;
+    }
+    const FWPLocalLensResult LocalLens = WPResolveLocalLens(
+        RayResult,
+        OutputViewportUV,
+        CurrentCleanSceneColor);
+    if (SceneMode == 3u)
+    {
+        const float UsesMovingSceneColor = LocalLens.UsesProjectedSceneColor
+            * (1.0f - WPGetOtherUniverse(RayResult))
+            * (1.0f - LocalLens.SubpixelIdentity);
+        const float3 ReprojectionVelocity = Calculate3DVelocity(
+            float4(ScreenPosition, 0.0f, 1.0f),
+            float4(LocalLens.ProjectedScreenPosition, 0.0f, 1.0f));
+#if STEREO_MOTION_VECTORS
+        const float4 EncodedZeroVelocity = 0.0f;
+        const float4 EncodedReprojectionVelocity = float4(ReprojectionVelocity, 0.0f);
+#else
+        const float4 EncodedZeroVelocity = EncodeVelocityToTexture(float3(0.0f, 0.0f, 0.0f));
+        const float4 EncodedReprojectionVelocity = EncodeVelocityToTexture(ReprojectionVelocity);
+#endif
+        const float4 EndpointVelocity = lerp(
+            EncodedZeroVelocity,
+            EncodedReprojectionVelocity,
+            UsesMovingSceneColor);
+        OutColor = lerp(SceneColor, EndpointVelocity, PortalVisibility);
+        return;
+    }
+    const float3 CompositeColor = WPComposite(LocalLens.Color, RayResult);
+    if (bPreparedLayer)
+    {
+        const float2 ForegroundUV = clamp(
+            (OutputViewportUV * Foreground_ViewportSize + float2(Foreground_ViewportMin))
+                * Foreground_ExtentInverse,
+            Foreground_UVViewportBilinearMin,
+            Foreground_UVViewportBilinearMax);
+        const float4 ForegroundSceneColor = ForegroundSceneColorTexture.SampleLevel(
+            ForegroundSceneColorSampler,
+            ForegroundUV,
+            0.0f);
+        // Prepared endpoints are submitted far-to-near. Rebuild this endpoint
+        // from the immutable custom-view foreground so a nearer wormhole
+        // replaces, rather than adds to, any farther wormhole at overlapping
+        // pixels. The foreground inverse opacity keeps existing translucency.
+        const float3 EndpointColor = bCameraInsideOuter
+            ? CompositeColor
+            : ForegroundSceneColor.rgb + CompositeColor * saturate(ForegroundSceneColor.a);
+        OutColor.rgb = lerp(SceneColor.rgb, EndpointColor, PortalVisibility);
+    }
+    else
+    {
+        OutColor.rgb = lerp(SceneColor.rgb, CompositeColor, PortalVisibility);
+    }
+}
