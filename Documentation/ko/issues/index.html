@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>문제 해결 - Wormhole Portal</title>
+  <link rel="stylesheet" href="../stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="../../issues/index.html">
+  <link rel="alternate" hreflang="ko" href="index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">본문으로 건너뛰기</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="../index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="언어">
+        <a hreflang="en" lang="en" href="../../issues/index.html">English</a>
+        <a hreflang="ko" lang="ko" href="index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="문서 목차">
+        <p class="section-nav__title">문서 목차</p>
+        <div class="section-nav__links">
+          <a href="../index.html">홈</a>
+          <a href="../getting_started/index.html">시작하기</a>
+          <a href="../features/index.html">기능</a>
+          <a href="../demo/index.html">데모</a>
+          <a href="../reference.html">레퍼런스</a>
+          <a href="index.html" aria-current="page">문제 해결</a>
+          <a href="../faq/index.html">FAQ</a>
+          <a href="../support/index.html">호환성 및 지원</a>
+        </div>
+      </nav>
+      <p class="offline-note">이 문서는 네트워크 연결 없이 로컬 파일로 열립니다.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="_1">문제 해결</h1>
+<p>이 페이지에서는 Wormhole Portal의 현재 제한사항과 예상대로 동작하지 않을
+때 먼저 확인할 항목을 안내합니다.</p>
+<div class="admonition info">
+<p class="admonition-title">현재 호환성 기준</p>
+<p>버전 1.0의 공식 테스트·지원 환경은 Unreal Engine 5.8, Win64, DX12,
+SM6입니다.</p>
+</div>
+<h2 id="known-limitations">알려진 제한사항</h2>
+<table>
+<thead>
+<tr>
+<th>영역</th>
+<th>현재 제한사항</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>렌더링 View</td>
+<td>Win64, DX12, SM6의 단일 Primary Perspective Non-stereo Game View에서 포털 Composite를 지원합니다.</td>
+</tr>
+<tr>
+<td>미지원 View</td>
+<td>Scene Capture, Reflection Capture, Planar Reflection, Orthographic, Stereo/VR, Split Screen 및 다른 Multi-view에는 포털이 합성되지 않습니다.</td>
+</tr>
+<tr>
+<td>Movie Render Queue</td>
+<td>Main Deferred Mono Beauty 출력을 지원합니다. Custom Pass, Virtual Texture Pass, Stereo 및 Multi-view 출력에는 포털이 합성되지 않습니다.</td>
+</tr>
+<tr>
+<td>포털 Scale</td>
+<td>연결된 두 Portal Actor의 Actor Scale은 모두 <code>(1, 1, 1)</code>이어야 합니다. 크기는 Metric 속성으로 변경합니다.</td>
+</tr>
+<tr>
+<td>Transit Primitive</td>
+<td>지원되는 Movable Collision Primitive Component가 필요합니다. Instanced Static Mesh Component는 Transit Primitive로 지원하지 않습니다.</td>
+</tr>
+<tr>
+<td>Physics Transit</td>
+<td>Physics Collision 및 Simulation이 켜진 지원 단일 Body Primitive가 하나 이상 필요합니다. 유효한 Mesh의 Static Mesh 또는 Shape Component를 지원하며 Instanced Static Mesh는 제외합니다.</td>
+</tr>
+<tr>
+<td>Voxel Collision</td>
+<td>Instanced가 아닌 Static Mesh의 Sphere, Box, Capsule, Convex Simple Collision과 Box/Sphere/Capsule Shape Component Bake를 지원합니다.</td>
+</tr>
+<tr>
+<td>Portal Trace</td>
+<td>공개 Blueprint API는 Line Trace By Channel을 제공합니다. Object Type, Profile 및 Sweep 버전은 구현되어 있지 않습니다.</td>
+</tr>
+<tr>
+<td>Ray 변환</td>
+<td><code>Transform Ray Through Portal</code>은 포털 바깥에서 내부 방향으로 접근하는 Ray를 대상으로 합니다.</td>
+</tr>
+<tr>
+<td>Trace Exit Offset</td>
+<td><strong>Portal Exit Offset</strong>은 즉시 자기 자신을 다시 Hit하는 것을 막지만 남은 Trace 거리에서 차감되지 않습니다. 출구 표면과 Offset 시작점 사이 구간도 Collision을 검사하지 않습니다.</td>
+</tr>
+<tr>
+<td>Audio</td>
+<td>하나의 주 Listener, 한 번의 Portal Hop, 조건을 만족하는 활성 Spatialized 3D Audio Component를 지원합니다.</td>
+</tr>
+<tr>
+<td>Lighting</td>
+<td>Point 및 Spot Light만 전달합니다. Directional Light는 내부 수집 대상일 수 있지만 전달되지는 않습니다.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">포털이 보이지 않음</h2>
+<p>다음 순서로 확인하세요.</p>
+<ol>
+<li>Portal Actor에 유효한 <strong>Linked Portal</strong>이 있는지 확인합니다.</li>
+<li>두 포털의 Actor Scale이 <code>(1, 1, 1)</code>인지 확인합니다.</li>
+<li>공식 지원 환경인 Win64, DX12, SM6의 Perspective Game View를 사용합니다.</li>
+<li>Scene Capture, Reflection, Stereo 또는 Split Screen이 아닌 Primary
+   Mono View인지 확인합니다.</li>
+<li><strong>Transition Length</strong>가 0보다 크다면 비동기 Runtime LUT Fallback이
+   끝날 때까지 기다리거나 호환되는 LUT를 Bake합니다.</li>
+<li><strong>Output Log</strong>에서 <code>LogWormhole</code>을 필터링하고 Renderer 항목의
+   <code>Reason=...</code> 필드를 확인합니다. 미지원 View의 결과 변경까지 기록하려면 문제를
+   재현하기 전에 <code>Log LogWormhole VeryVerbose</code>를 임시로 실행합니다.</li>
+</ol>
+<p>대표적인 Renderer 사유는 다음과 같습니다.</p>
+<ul>
+<li><code>InvalidPairOrTransform</code></li>
+<li><code>MetricInvalid</code></li>
+<li><code>MetricMismatch</code></li>
+<li><code>UnsupportedScale</code></li>
+<li><code>CaptureNotSubmitted</code></li>
+<li><code>MissingTextureReference</code></li>
+<li><code>UnresolvedReferencedTexture</code></li>
+<li><code>WrongTextureDimension</code></li>
+</ul>
+<p>미지원 View에서는 다음 사유가 기록될 수 있습니다.</p>
+<ul>
+<li><code>SceneCaptureOrReflection</code></li>
+<li><code>UnsupportedGameProjectionOrFeatureLevel</code></li>
+<li><code>StereoView</code></li>
+<li><code>NotExactlyOneFamilyView</code></li>
+<li><code>NonPrimaryPlayerView</code></li>
+</ul>
+<h2 id="wpportaltrace">WPPortalTrace 경고가 계속 표시됨</h2>
+<p>Wormhole Portal은 <code>WPPortalTrace</code>라는 전용 Trace Channel이 필요합니다.</p>
+<p>가능하면 시작 알림에서 <strong>Add Automatically</strong>를 사용하고 Editor를 다시
+시작하세요.</p>
+<p>자동 설정에 실패한다면 다음을 확인하세요.</p>
+<table>
+<thead>
+<tr>
+<th>문제</th>
+<th>해결 방법</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>잘못된 Channel Type</td>
+<td><code>WPPortalTrace</code>가 Object Channel이 아니라 <strong>Trace Channel</strong>인지 확인합니다.</td>
+</tr>
+<tr>
+<td>Channel 불일치</td>
+<td>플러그인의 <strong>Portal Trace Channel</strong>과 Unreal에서 할당된 Channel을 일치시킵니다.</td>
+</tr>
+<tr>
+<td>남은 Game Channel 없음</td>
+<td>사용하지 않는 Game Trace Channel을 확보한 뒤 다시 시도합니다.</td>
+</tr>
+<tr>
+<td>읽기 전용 설정</td>
+<td><code>Config/DefaultEngine.ini</code>를 체크아웃하거나 쓰기 가능 상태로 변경합니다.</td>
+</tr>
+<tr>
+<td>수동 설정</td>
+<td><strong>Project Settings &gt; Engine &gt; Collision</strong>에서 <code>WPPortalTrace</code>를 만들고 <strong>Default Response: Ignore</strong>로 지정한 뒤 플러그인 설정을 맞춥니다.</td>
+</tr>
+</tbody>
+</table>
+<p>Portal-aware Trace의 일반 Collision Channel로 <code>WPPortalTrace</code>를 전달하지
+마세요. 플러그인의 내부 포털 감지 전용입니다.</p>
+<h2 id="lut-bake">LUT Bake 실패</h2>
+<p><strong>Tools &gt; Wormhole Portal &gt; Bake All LUTs</strong>를 열고 다음을 확인하세요.</p>
+<ul>
+<li>Editor World와 하나 이상의 Portal Actor가 존재해야 합니다.</li>
+<li><strong>Generated LUT Asset Path</strong>가 올바른 <code>/Game/...</code> Long Package
+  경로여야 합니다.</li>
+<li>Portal Metric 값이 유효해야 합니다.</li>
+<li>요청한 <code>Transition Length / Portal Radius</code> 범위가 LUT Domain 안에
+  있어야 합니다.</li>
+<li>Source Control에서 생성 Package를 체크아웃하고 저장할 수 있어야
+  합니다.</li>
+<li>Bake가 취소되지 않았는지 확인합니다.</li>
+</ul>
+<p>기본 생성 경로는 다음과 같습니다.</p>
+<div class="highlight"><pre><code>/WormholePortal/WormholePortal/Generated/LUT
+</code></pre></div>
+<p>성공 알림은 다음 문구로 시작합니다.</p>
+<div class="highlight"><pre><code>LUT ready:
+</code></pre></div>
+<p><strong>Allow Runtime LUT Fallback</strong>이 켜져 있다면 Baked LUT는 필수가 아니지만,
+시작 준비 시점을 예측 가능하게 만들려면 Bake를 권장합니다.
+<code>Transition Length = 0</code>은 Analytic 경로를 사용하므로 LUT가 필요하지
+않습니다.</p>
+<h2 id="editor-lut">Editor에서는 LUT가 보이지만 패키지에서 보이지 않음</h2>
+<p>Editor 모듈은 <strong>Generated LUT Asset Path</strong>를
+<code>DirectoriesToAlwaysCook</code>와 동기화하려고 시도합니다.</p>
+<p><code>Config/DefaultGame.ini</code>를 업데이트하지 못했다는 경고가 표시되면:</p>
+<ol>
+<li>파일을 체크아웃하거나 쓰기 가능 상태로 변경합니다.</li>
+<li>Editor를 다시 시작해 시작 시 동기화를 재실행하거나, Project Packaging
+   Settings에 경로를 직접 추가합니다.</li>
+<li><strong>Additional Asset Directories to Cook</strong>에 설정한 경로가 포함되어
+   있는지 확인합니다.</li>
+</ol>
+<p>기본 경로를 사용하는 설정은 다음과 같습니다.</p>
+<div class="highlight"><pre><code><span class="k">[/Script/UnrealEd.ProjectPackagingSettings]</span>
+<span class="na">+DirectoriesToAlwaysCook=(Path</span><span class="o">=</span><span class="s">&quot;/WormholePortal/WormholePortal/Generated/LUT&quot;</span><span class="na">)</span>
+</code></pre></div>
+<p><strong>Generated LUT Asset Path</strong>를 변경했다면 변경한 <code>/WormholePortal/...</code>
+경로를
+사용해야 합니다.</p>
+<h2 id="transit">Transit이 시작되지 않음</h2>
+<p><strong>Tools &gt; Wormhole Portal &gt; Transit Manager</strong>를 열고 Actor 상태를
+확인하세요.</p>
+<table>
+<thead>
+<tr>
+<th>상태</th>
+<th>확인할 내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Not Supported</code></td>
+<td>Actor가 Character, Projectile, Pawn 또는 Physics 요구사항과 맞지 않습니다.</td>
+</tr>
+<tr>
+<td><code>Needs Setup: Transit is disabled</code></td>
+<td><code>WPTransitComponent</code>의 <strong>Transit Enabled</strong>를 켭니다.</td>
+</tr>
+<tr>
+<td><code>Needs Setup: Transit settings are invalid</code></td>
+<td>선택한 Transit Type과 Component 구성을 확인합니다.</td>
+</tr>
+<tr>
+<td><code>Needs Setup: No movable collision Primitive was found</code></td>
+<td>Actor가 소유한 Movable Collision Primitive Component를 추가합니다.</td>
+</tr>
+<tr>
+<td><code>Needs Setup: No supported Primitive is simulating Physics.</code></td>
+<td>Physics Transit에는 Physics Collision과 Simulation이 켜진 지원 Static Mesh 또는 Shape Component가 필요합니다.</td>
+</tr>
+<tr>
+<td><code>Needs Setup: Bake Voxel Body...</code></td>
+<td>Voxel Collision을 켜고 표시된 각 호환 Primitive의 Voxel Data를 Bake합니다.</td>
+</tr>
+</tbody>
+</table>
+<p>Runtime 거부 상세 로그는 Non-Shipping 빌드에서 <code>LogWormhole</code>의 Verbose
+상세도를 켰을 때 다음 형태입니다.</p>
+<div class="highlight"><pre><code>Log LogWormhole Verbose
+</code></pre></div>
+<div class="highlight"><pre><code>[Transit][Rejected] TimestampSeconds=... RuntimeReason=EWPTransitFailReason::... ResolveReason=EWPTransitResolveFailReason::... FailedComponents=... Actor=... SourcePortal=... DestinationPortal=... TransitType=EWPTransitType::...
+</code></pre></div>
+<p><code>RuntimeReason</code>은 Transit Lifecycle 실패, <code>ResolveReason</code>은 세부 설정 검사
+실패, <code>FailedComponents</code>는 관련 Component를 나타냅니다. 이 상세 거부 행은
+Shipping 빌드에서 컴파일되지 않습니다.</p>
+<p>가능한 Runtime 사유에는 <code>NotReady</code>, <code>PortalUnavailable</code>, <code>AlreadyInTransit</code>,
+<code>CooldownActive</code>, <code>DoesNotFitGate</code>, <code>UnsupportedActor</code>, <code>InvalidSetup</code>,
+<code>TransitDisabled</code>, <code>MissingPrimitives</code>, <code>MissingPhysicsMesh</code>,
+<code>MissingVoxelData</code> 등이 있습니다.</p>
+<p>World Partition에서 <code>NotReady</code>는 연결된 영역의 Streaming이 끝나지 않았다는
+뜻일 수 있습니다. <code>IsLinkedPortalAreaReady()</code>가 <code>true</code>를 반환할 때까지
+Actor가 경계에 들어가지 않게 하세요.</p>
+<h2 id="voxel-body-bake">Voxel Body Bake 실패</h2>
+<p>다음을 확인하세요.</p>
+<ol>
+<li><code>WPTransitComponent</code>에서 <strong>Use Voxel Collision</strong>이 켜져 있어야 합니다.</li>
+<li>Static Mesh를 사용한다면 원본 Asset을 저장하고 유효한 Simple
+   Collision을 준비합니다.</li>
+<li>Static Mesh Collision은 Sphere, Box, Capsule 또는 Convex여야 합니다.</li>
+<li>Shape Component는 <code>BoxComponent</code>, <code>SphereComponent</code>,
+   <code>CapsuleComponent</code> 중 하나여야 합니다.</li>
+<li><strong>Voxel Size</strong>가 0보다 커야 합니다.</li>
+<li><strong>Max Voxel Count</strong>가 <code>1–512</code> 사이여야 합니다. 이 값은 각 참여
+   Primitive별 상한입니다.</li>
+</ol>
+<p>기본 출력은 <code>/WormholePortal/WormholePortal/Generated/Voxels</code>입니다. 사용자 지정
+<strong>Generated Voxel Asset Path</strong>도 대소문자를 구분하는 <code>/WormholePortal/</code> Prefix의
+유효한 Long Package Directory여야 합니다.</p>
+<p>Tapered Capsule, Level Set, Skinned Triangle Collision 및 다른 미지원
+Collision Type은 현재 Voxel Baker로 Bake할 수 없습니다.</p>
+<h2 id="material-clipping">Material Clipping이 작동하지 않음</h2>
+<p>Material Clipping은 선택 기능이며 임의의 Material을 자동으로 수정하지
+않습니다.</p>
+<p>다음을 확인하세요.</p>
+<ul>
+<li>Transit Component에서 <strong>Use Material Clip</strong>이 켜져 있어야 합니다.</li>
+<li>Material에서
+  <code>/WormholePortal/WormholePortal/Materials/MaterialFunctions/MF_WPTransitClip</code>을
+  사용하고 Compile/Save합니다.</li>
+<li>Material과 Project Settings가 같은 <strong>Clip Base Index</strong>를 사용해야
+  합니다.</li>
+<li>해당 Index부터 연속된 Custom Primitive Data 슬롯 네 개가 비어 있어야
+  합니다.</li>
+</ul>
+<p>기본 <strong>Clip Base Index</strong>는 <code>28</code>입니다.</p>
+<h2 id="audio">포털 너머의 Audio가 들리지 않음</h2>
+<p>Portal Audio에는 조건을 만족하는 활성 3D Audio Component가 필요합니다.</p>
+<p>다음을 확인하세요.</p>
+<ul>
+<li>Spatialization이 켜져 있어야 합니다.</li>
+<li>Component에 Spatialization이 켜진 Attenuation Settings가 있어야
+  합니다.</li>
+<li>UI/2D Sound 또는 Source Bus Asset이 아니어야 합니다.</li>
+<li>Component가 등록되고 재생 중이며 Multiple Instance 재생으로 설정되지
+  않아야 합니다.</li>
+<li>Attenuation Range가 포털까지 도달해야 합니다.</li>
+<li>Source가 포털 Sphere 바깥에 있어야 합니다.</li>
+<li>Component와 소유 Actor에 <code>WP.PortalAudio.Disabled</code> Tag가 없어야
+  합니다.</li>
+</ul>
+<p>런타임 조건이 맞으면 <code>PlayWhenSilent</code> Source는 내부 Post-effect Source
+Bus 경로를 사용할 수 있습니다. 그 밖의 조건에 맞는 Source와 해당 경로를
+사용할 수 없는 경우에는 가능한 범위에서 별도 재생 인스턴스를 사용합니다.
+생성된 Proxy는 재전송 대상에서 제외되므로 Audio는 현재 포털을 한 번만
+통과합니다.</p>
+<h2 id="portal-lighting">포털 Lighting이 보이지 않음</h2>
+<p>현재 Proxy Light 경로는 Point 및 Spot Light만 전달합니다.</p>
+<p>다음을 확인하세요.</p>
+<ul>
+<li>Source가 Point 또는 Spot Light여야 합니다.</li>
+<li>켜져 있고 World에 영향을 주며 Intensity가 0보다 커야 합니다.</li>
+<li>Attenuation Volume이 입구 포털에 닿아야 합니다.</li>
+<li>Source가 포털 내부에 있으면 안 됩니다.</li>
+<li>두 포털이 Unit Scale과 같은 Radius를 사용해야 합니다.</li>
+<li>Light Component와 소유 Actor에 <code>WP.PortalLight.Disabled</code> Tag가 없어야
+  합니다.</li>
+</ul>
+<p>전달되는 Source Shadow에는 <strong>Enable Portal Source Shadows</strong>, <strong>Cast
+Shadows</strong>, <strong>Cast Dynamic Shadows</strong>도 켜져 있어야 합니다. Directional
+Light, Rect Light, 서로 다른 Radius, 포털 내부의 Light, GI, Reflection,
+Volumetric, Translucent Shadow, Colored Shadow는 전달하지 않습니다.</p>
+<h2 id="_3">문제 제보 시 준비할 정보</h2>
+<ul>
+<li>Unreal Engine 버전</li>
+<li>플러그인 버전 또는 Commit</li>
+<li>PIE, SIE, Standalone, Packaged 또는 Movie Render Queue 중 어디서
+  발생했는지</li>
+<li>최소 재현 절차</li>
+<li><code>LogWormhole</code>로 필터링한 Output Log</li>
+<li>표시된 <code>RuntimeReason</code>, <code>ResolveReason</code>, <code>FailedComponents</code> 값</li>
+<li>Portal Actor와 관련 Component 설정 스크린샷</li>
+<li>렌더링 또는 Capture 문제라면 <code>stat WormholePortal</code> 결과</li>
+</ul>
+<p>준비한 정보는 공식 지원 이메일
+<a href="mailto:beavergametech@gmail.com">beavergametech@gmail.com</a>으로 보내세요.
+보내기 전에 <a href="../support/index.html">호환성 및 지원</a>의 지원 범위와 민감 정보 안내를
+확인하세요.</p>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

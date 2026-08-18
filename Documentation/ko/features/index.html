@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>기능 - Wormhole Portal</title>
+  <link rel="stylesheet" href="../stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="../../features/index.html">
+  <link rel="alternate" hreflang="ko" href="index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">본문으로 건너뛰기</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="../index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="언어">
+        <a hreflang="en" lang="en" href="../../features/index.html">English</a>
+        <a hreflang="ko" lang="ko" href="index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="문서 목차">
+        <p class="section-nav__title">문서 목차</p>
+        <div class="section-nav__links">
+          <a href="../index.html">홈</a>
+          <a href="../getting_started/index.html">시작하기</a>
+          <a href="index.html" aria-current="page">기능</a>
+          <a href="../demo/index.html">데모</a>
+          <a href="../reference.html">레퍼런스</a>
+          <a href="../issues/index.html">문제 해결</a>
+          <a href="../faq/index.html">FAQ</a>
+          <a href="../support/index.html">호환성 및 지원</a>
+        </div>
+      </nav>
+      <p class="offline-note">이 문서는 네트워크 연결 없이 로컬 파일로 열립니다.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="_1">기능</h1>
+<p>Wormhole Portal은 물리학에서 영감을 받은 구형 포털 렌더러와 통과,
+트레이스, 오디오, 조명, World Partition 시스템을 함께 제공합니다. 모든
+시스템이 동일한 포털 연결과 Metric 모델을 사용하므로 포털을 통해 보이는
+목적지와 실제 게임플레이 이동 경로가 일치합니다.</p>
+<h2 id="_2">입체적인 웜홀 렌더링</h2>
+<p>포털은 평면 창이 아니라 볼륨으로 렌더링됩니다. 입구, 목, 전이 구간을
+통해 목적지 화면이 연속적인 구형 이미지로 휘어집니다.</p>
+<ul>
+<li><strong>입체적인 목:</strong> 카메라가 포털 볼륨에 접근하고 내부로 들어갈 수
+  있습니다.</li>
+<li><strong>공간 렌즈 효과:</strong> 설정된 웜홀 Metric에 따라 광선이 휘어집니다.</li>
+<li><strong>연속적인 목적지 화면:</strong> 입구에서 목 안쪽까지 연결된 공간이 이어져
+  보입니다.</li>
+<li><strong>공용 LUT 렌더링:</strong> 베이크한 룩업 데이터로 광선 매핑을
+  가속합니다. 설정을 켜 두면 호환되는 데이터가 없을 때 런타임 대체
+  데이터를 비동기로 만들 수 있습니다.</li>
+<li><strong>적응형 캡처:</strong> 포털의 가시성과 화면 점유율에 따라 Cubemap 해상도가
+  달라지며, Safe Proxy 내부에는 별도 해상도를 사용합니다.</li>
+</ul>
+<p><strong>Project Settings &gt; Plugins &gt; Wormhole Portal &gt; Scene Capture</strong>의 품질
+옵션은 포털 Cubemap 캡처에만 적용됩니다. 플레이어의 일반 Game View에는
+영향을 주지 않습니다.</p>
+<h2 id="metric">연결된 포털 쌍과 Metric</h2>
+<p>각 <code>WormholePortalActor</code>는 다른 포털 하나와 연결됩니다. <strong>Linked
+Portal</strong>을 지정하면 반대 방향 연결도 생성되고, 포털 쌍의 Metric 값이
+동기화됩니다.</p>
+<p>형태는 세 속성으로 정의합니다.</p>
+<table>
+<thead>
+<tr>
+<th>속성</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Portal Radius</strong></td>
+<td>물리 통과 판정에 사용하는 중앙 <code>l = 0</code> Seam의 반지름</td>
+</tr>
+<tr>
+<td><strong>Throat Half Length</strong></td>
+<td>연결된 목 길이의 절반</td>
+</tr>
+<tr>
+<td><strong>Transition Length</strong></td>
+<td>일반 공간과 목 사이의 전이 거리</td>
+</tr>
+</tbody>
+</table>
+<p>Mouth Radius는 <code>Portal Radius + Throat Half Length</code>이며, Transition
+Radius는 그 결과에 <strong>Transition Length</strong>를 더한 값입니다.</p>
+<div class="admonition warning">
+<p class="admonition-title">Actor Scale 대신 Metric 사용</p>
+<p>각 포털의 Transform Scale은 <code>(1, 1, 1)</code>로 유지하세요. Metric 계산은
+설정된 치수를 사용하며 Actor Scale을 크기 조절 값으로 취급하지
+않습니다.</p>
+</div>
+<p>런타임에 크기를 바꿀 때는 목적을 구분하세요.</p>
+<ul>
+<li><code>Initialize Physical Metric</code>은 최종 <code>ρ</code>, <code>a</code>, <code>T</code>를 한 번에 설정합니다.
+  이후 다시 호출할 때는 처음 정한 <code>a/ρ</code>, <code>T/ρ</code> 비율을 유지해야 합니다.</li>
+<li><code>Set Uniform Physical Metric Scale</code>은 Collision, Bounds, Visibility Query,
+  Capture 해상도까지 실제 물리 Metric을 균일하게 바꾸므로 비용이 큽니다.</li>
+<li><code>Set Portal Visual Scale</code>은 렌더링 크기만 바꿉니다. 프레임마다 실행하는
+  생성·성장 효과에는 이 API를 권장합니다.</li>
+</ul>
+<p><code>Set Metric Parameters</code>는 하위 호환용 Deprecated 이름입니다. 새
+Blueprint와 C++ 코드는 <code>Initialize Physical Metric</code>을 사용하세요.</p>
+<h2 id="_3">액터 통과</h2>
+<p>포털을 통과해야 하는 액터에 <code>WPTransitComponent</code>를 추가합니다.
+<strong>Transit Type: Auto</strong>는 액터와 움직일 수 있는 충돌 컴포넌트를 검사해
+호환되는 방식을 선택합니다.</p>
+<p>모든 참여 Actor에는 직접 소유한 Movable, Collision-enabled Primitive가
+필요합니다. Physics Transit은 Physics Collision과 Simulation이 켜진 지원
+단일 Body Primitive가 하나 이상 필요하며, 유효한 Mesh의 Instanced가 아닌
+Static Mesh 또는 지원 Shape Component를 사용합니다.</p>
+<p>지원하는 통과 유형은 다음과 같습니다.</p>
+<ul>
+<li><strong>Character</strong></li>
+<li><strong>Pawn</strong></li>
+<li><strong>Projectile</strong></li>
+<li><strong>Physics</strong></li>
+</ul>
+<p>통과 중에는 원본 액터와 반대편 액터의 관계를 유지하고, 연결된 포털을
+기준으로 Transform과 이동을 매핑하며, 즉시 역방향으로 다시 통과하지
+않도록 짧은 Cooldown을 적용합니다. 포털 연결, Metric, 이동 및 통과 관계
+상태는 복제됩니다. 전체 게임플레이 동작은 프로젝트의 네트워크 모델에서
+직접 테스트하세요.</p>
+<p>표현과 충돌을 위한 두 가지 선택 기능도 있습니다.</p>
+<ul>
+<li><strong>Material Clip</strong>은 연속된 네 개의 Custom Primitive Data 슬롯에 Sphere
+  Clip의 중심, Normal, 반지름을 기록해, 호환 머티리얼이 경계 너머 부분을
+  숨길 수 있게 합니다.</li>
+<li><strong>Voxel Collision</strong>은 오브젝트가 두 공간에 걸쳐 있는 동안 참여하는
+  Primitive의 충돌을 베이크한 Box Voxel Body로 교체합니다.</li>
+</ul>
+<p>Voxel Collision은 Instanced가 아닌 Static Mesh의 Sphere, Box, Capsule,
+Convex Simple Collision과 <code>BoxComponent</code>, <code>SphereComponent</code>,
+<code>CapsuleComponent</code>를 지원합니다. Transit Component에서 기능을 켠 뒤
+Details 패널에서 <strong>Bake Voxel Body</strong>를 실행하세요. <strong>Max Voxel Count</strong>는
+Actor 전체가 아니라 각 참여 Primitive별 상한입니다.</p>
+<p>Material Clip을 사용하려면 머티리얼에
+<code>/WormholePortal/WormholePortal/Materials/MaterialFunctions/MF_WPTransitClip</code>을 연결하고,
+Transit Component에서 <strong>Use Material Clip</strong>을 켭니다. Project Settings의
+<strong>Clip Base Index</strong>와 머티리얼의 Index를 일치시키고, 기본값 <code>28</code>부터
+연속된 Custom Primitive Data 네 칸(<code>28–31</code>)이 다른 용도와 충돌하지 않는지
+확인한 뒤 Compile 및 Save하세요.</p>
+<h2 id="_4">포털 인식 트레이스</h2>
+<p>일반 Unreal Line Trace는 연결된 포털 공간으로 이어지지 않습니다. 포털
+인식 API는 <code>WPPortalTrace</code>로 포털을 별도 감지하고 연결된 출구에서
+논리적인 광선을 이어 갑니다.</p>
+<p>Blueprint와 C++ API는 다음을 제공합니다.</p>
+<ul>
+<li>단일 및 다중 히트 Line Trace</li>
+<li>간단한 결과와 상세 결과</li>
+<li>모든 구간을 합친 논리 거리</li>
+<li>통과 횟수와 포털별 진입·진출 이벤트</li>
+</ul>
+<p>프로젝트에는 <code>WPPortalTrace</code>라는 Trace Channel이 필요합니다. 플러그인
+시작 알림에서 채널을 자동으로 추가하고 설정을 맞출 수 있으며, 변경 후
+에디터를 다시 시작해야 합니다.</p>
+<h2 id="_5">포털을 통한 공간 오디오</h2>
+<p>오디오 서브시스템은 공간화된 Audio Component를 찾아 연결된 포털
+반대편에 재방사 프록시를 만듭니다.</p>
+<ul>
+<li>양방향 경로를 서로 독립적으로 계산합니다.</li>
+<li>음원에서 입구까지, 출구에서 리스너까지의 Occlusion을 따로
+  검사합니다.</li>
+<li>경로가 막히면 볼륨을 줄이고 Low-pass Filter를 적용할 수 있습니다.</li>
+<li>런타임에 생성된 공간화 Audio Component도 주기적으로 찾습니다.</li>
+</ul>
+<p>현재 모델은 하나의 주 리스너와 한 번의 포털 Hop을 지원합니다. Audio
+Component 또는 소유 액터에 <code>WP.PortalAudio.Disabled</code> 태그를 추가하면
+대상에서 제외할 수 있습니다.</p>
+<h2 id="point-spot-light">Point 및 Spot Light 전달</h2>
+<p>입구 포털에 영향을 주는 Point Light와 Spot Light는 연결된 출구에
+동기화된 프록시를 만들 수 있습니다. 프록시는 원본의 Transform과 조명
+속성을 따라가고, 조명 범위를 포털 입구로 제한하며, 그림자를 위해 원본
+공간의 가시성도 전달할 수 있습니다.</p>
+<p>현재 조명 모델은 Directional Light, Global Illumination, 반사, 볼류메트릭,
+반투명 그림자, 색이 있는 그림자, 포털 내부에 있는 조명, 반지름이 서로
+다른 포털 쌍을 전달하지 않습니다. 조명에 의존하는 장면을 만들기 전에
+<a href="../issues/index.html#portal-lighting">문제 해결</a>을 확인하세요.</p>
+<h2 id="world-partition">World Partition 목적지 스트리밍</h2>
+<p>World Partition 레벨에서는 플레이어가 입구에 도달하기 전에 연결된
+목적지 영역을 로드 상태로 유지할 수 있습니다.</p>
+<ul>
+<li><strong>Streaming Preload Distance</strong>는 목적지 소스를 요청할 거리를 정합니다.</li>
+<li><strong>Streaming Release Distance</strong>는 목적지를 해제할 거리를 정합니다.</li>
+<li><strong>Streaming Query Interval</strong>은 거리를 다시 계산하는 주기를 정합니다.</li>
+<li><code>IsLinkedPortalAreaReady()</code>로 목적지가 준비되었는지 확인할 수 있습니다.</li>
+</ul>
+<p>반복적인 로드·언로드를 막으려면 Release Distance를 Preload Distance보다
+크게 유지하세요. 연결된 영역이 준비되지 않았다면 목적지가 준비될 때까지
+통과가 차단될 수 있습니다.</p>
+<h2 id="_6">에디터 작업 흐름과 진단</h2>
+<p>플러그인은 <strong>Tools &gt; Wormhole Portal</strong> 아래에 두 명령을 추가합니다.</p>
+<table>
+<thead>
+<tr>
+<th>도구</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Transit Manager</strong></td>
+<td>액터를 검사하고 설정 문제를 표시하며 호환되는 액터에 Transit을 추가</td>
+</tr>
+<tr>
+<td><strong>Bake All LUTs</strong></td>
+<td>현재 레벨의 포털에 사용할 공용 렌더링 룩업 데이터 생성</td>
+</tr>
+</tbody>
+</table>
+<p>포털 액터는 에디터에서 Metric 경계를 그릴 수 있고,
+<code>WPTransitComponent</code>에는 런타임 통과 디버그가 있습니다. 더 넓은 범위의
+진단에는 다음을 사용하세요.</p>
+<ul>
+<li><strong>Output Log</strong>를 <code>LogWormhole</code>로 필터링합니다.</li>
+<li>Non-Shipping 빌드에서 Transit 거부를 재현하기 전에
+  <code>Log LogWormhole Verbose</code>를 실행합니다.</li>
+<li><code>stat WormholePortal</code>로 플러그인 카운터와 CPU 시간을 확인합니다.</li>
+<li>실제 GPU 실행 비용은 Unreal의 <code>stat gpu</code> 또는 GPU Profiler로
+  확인합니다.</li>
+</ul>
+<h2 id="_7">다음 문서</h2>
+<ul>
+<li><a href="../getting_started/index.html">시작하기</a>에서 실제 포털 쌍을 만드세요.</li>
+<li><a href="../demo/index.html">데모</a>에서 모든 예제를 직접 실행하세요.</li>
+<li>속성, Enum, 함수, 기본값은 <a href="../reference.html">레퍼런스</a>를 참고하세요.</li>
+<li>알려진 제한과 해결 방법은 <a href="../issues/index.html">문제 해결</a>을 참고하세요.</li>
+<li>공식 호환성과 문의 방법은 <a href="../support/index.html">호환성 및 지원</a>을 참고하세요.</li>
+</ul>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

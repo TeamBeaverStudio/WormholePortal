@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>FAQ - Wormhole Portal</title>
+  <link rel="stylesheet" href="../stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="index.html">
+  <link rel="alternate" hreflang="ko" href="../ko/faq/index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="../index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="Language">
+        <a hreflang="en" lang="en" href="index.html">English</a>
+        <a hreflang="ko" lang="ko" href="../ko/faq/index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="Documentation">
+        <p class="section-nav__title">Documentation</p>
+        <div class="section-nav__links">
+          <a href="../index.html">Home</a>
+          <a href="../getting_started/index.html">Getting Started</a>
+          <a href="../features/index.html">Features</a>
+          <a href="../demo/index.html">Demo</a>
+          <a href="../reference.html">Reference</a>
+          <a href="../issues/index.html">Issues</a>
+          <a href="index.html" aria-current="page">FAQ</a>
+          <a href="../support/index.html">Compatibility &amp; Support</a>
+        </div>
+      </nav>
+      <p class="offline-note">This documentation opens locally without a network connection.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="faq">FAQ</h1>
+<h2 id="which-unreal-engine-version-does-the-plugin-target">Which Unreal Engine version does the plugin target?</h2>
+<p>Version 1.0 is officially tested and supported with Unreal Engine 5.8 on
+Win64, DirectX 12, and SM6. Linux, macOS, DirectX 11, mobile, consoles, and
+dedicated-server targets are not declared supported.</p>
+<h2 id="where-is-the-included-demo">Where is the included demo?</h2>
+<p>In the Content Browser, enable <strong>Show Plugin Content</strong>, then open:</p>
+<div class="highlight"><pre><code>WormholePortal Content/WormholePortal/Demo/Lv_WormholePortal_Content_Demo
+</code></pre></div>
+<p>See <a href="../demo/index.html">Demo</a> for the entry map, examples, dependencies, and reuse
+guidance.</p>
+<h2 id="does-every-portal-need-a-linked-portal">Does every portal need a linked portal?</h2>
+<p>A valid pair is required for destination rendering and for transit, traces,
+audio, lighting, and destination streaming. Assigning <strong>Linked Portal</strong> creates
+the reciprocal link and synchronizes the pair's metric.</p>
+<h2 id="can-i-resize-a-portal-with-actor-scale">Can I resize a portal with Actor Scale?</h2>
+<p>No. Keep both Portal Actors at <code>(1, 1, 1)</code>. Before BeginPlay, author <strong>Portal
+Radius</strong>, <strong>Throat Half Length</strong>, and <strong>Transition Length</strong>. At runtime, use
+<strong>Initialize Physical Metric</strong> once, then either <strong>Set Uniform Physical Metric
+Scale</strong> for a physical resize or <strong>Set Portal Visual Scale</strong> for render-only
+animation.</p>
+<h2 id="why-do-the-individual-metric-setters-stop-working-after-beginplay">Why do the individual metric setters stop working after BeginPlay?</h2>
+<p>They are authoring/pre-BeginPlay setters. Independent runtime changes could make
+<code>ρ</code>, <code>a</code>, and <code>T</code> drift into an inconsistent physical shape.</p>
+<p>The first successful <strong>Initialize Physical Metric</strong> call establishes all three
+values atomically and captures the <code>a/ρ</code> and <code>T/ρ</code> ratios. Later initialization
+calls must preserve those ratios. <strong>Set Metric Parameters</strong> is only a deprecated
+compatibility alias.</p>
+<h2 id="which-scale-api-should-i-animate">Which scale API should I animate?</h2>
+<p>Use <strong>Set Portal Visual Scale</strong> for per-frame opening or growth effects. It
+changes only compositor size and leaves collision, metric, bounds, LUT identity,
+capture ownership/warmup/cadence, and dynamic resolution unchanged.</p>
+<p>Use <strong>Set Uniform Physical Metric Scale</strong> only when the physical traversal gate
+and collision must also resize. It updates more systems and is intentionally
+more expensive.</p>
+<h2 id="do-i-have-to-bake-a-lut">Do I have to bake a LUT?</h2>
+<p>Not while <strong>Allow Runtime LUT Fallback</strong> is enabled. The runtime can generate
+compatible transient data asynchronously. Pre-bake when predictable startup
+readiness matters. <code>Transition Length = 0</code> uses the analytic path and needs no
+LUT.</p>
+<h2 id="where-are-generated-luts-stored-and-cooked">Where are generated LUTs stored and cooked?</h2>
+<p>The code-default location is <code>/WormholePortal/WormholePortal/Generated/LUT</code>.
+The Editor module attempts to add the configured directory to <strong>Additional
+Asset Directories to Cook</strong>.</p>
+<p>A custom LUT location must be a valid Unreal Long Package Directory beginning
+with the case-sensitive prefix <code>/WormholePortal/</code>. Confirm the exact path in
+Packaging settings before shipping.</p>
+<h2 id="can-portals-appear-in-scene-capture-vr-split-screen-or-every-movie-render-queue-pass">Can portals appear in Scene Capture, VR, split-screen, or every Movie Render Queue pass?</h2>
+<p>No. In the supported Win64 DX12 SM6 environment, rendering supports one
+primary, perspective, non-stereo Game View.</p>
+<p>Scene Capture, Reflection Capture, Planar Reflection, orthographic, stereo/VR,
+split-screen, and other multi-view families are excluded. Movie Render Queue
+supports the main deferred mono beauty output; custom passes, Virtual Texture
+passes, stereo, and multi-view output omit the portal composite.</p>
+<h2 id="are-portals-rendered-on-a-dedicated-server">Are portals rendered on a dedicated server?</h2>
+<p>No. The renderer module is excluded from Server targets. Gameplay and
+replication still need project-specific dedicated-server validation; do not
+interpret replicated portal state as a promise of rendering on the server.</p>
+<h2 id="which-actors-can-use-transit">Which Actors can use transit?</h2>
+<p>Add <code>WPTransitComponent</code>. Supported handler types are Character, Projectile,
+Pawn, Physics, and Auto. Auto checks Character, Projectile, Pawn, then Physics.</p>
+<p>Participating Primitives must be actor-owned, Movable, and collision-enabled.
+Physics additionally needs a supported body with Physics collision enabled and
+simulation running: a non-instanced Static Mesh Component with a valid mesh, or
+a supported Shape Component. Instanced Static Mesh Components are unsupported.</p>
+<h2 id="what-does-doesnotfitgate-mean">What does DoesNotFitGate mean?</h2>
+<p>The Actor's projected traversal cross-section perpendicular to its movement
+does not fit the source portal gate/core radius. Increase <strong>Portal Radius</strong> or
+correct/reduce the Actor collision bounds. Do not scale the Portal Actor.</p>
+<h2 id="what-can-voxel-collision-bake">What can Voxel Collision bake?</h2>
+<p>Voxel baking supports:</p>
+<ul>
+<li>non-instanced Static Mesh Components with usable Simple Collision; and</li>
+<li>Box, Sphere, and Capsule Components.</li>
+</ul>
+<p>Static Mesh Simple Collision can contain Sphere, Box, Capsule, and Convex
+elements. <strong>Max Voxel Count</strong> applies separately to each baked Primitive. It is
+not one budget per Static Mesh or Actor.</p>
+<p>The default generated location is
+<code>/WormholePortal/WormholePortal/Generated/Voxels</code>. A custom Voxel path must be a
+valid Long Package Directory under the case-sensitive <code>/WormholePortal/</code>
+prefix.</p>
+<h2 id="what-is-max-portal-depth">What is Max Portal Depth?</h2>
+<p>Portal-aware line traces can cross multiple portals. <strong>Max Portal Depth</strong>
+prevents an infinite loop between linked endpoints. The default is <code>4</code>; raise
+it only when the logical trace genuinely needs more crossings.</p>
+<h2 id="which-collision-channel-should-a-portal-aware-trace-use">Which collision channel should a portal-aware trace use?</h2>
+<p>Use the ordinary scene channel for the objects you want to hit. Never use
+<code>WPPortalTrace</code> as that argument: the plugin reserves it for internal portal
+intersection detection.</p>
+<h2 id="does-transit-support-multiplayer">Does transit support multiplayer?</h2>
+<p>Portal movement, link, and metric state are replicated, and the Transit
+Component carries server-authoritative replicated transit state.</p>
+<p>Participating gameplay Actors still need Unreal's normal replication,
+ownership, relevancy, and movement configuration. Test the complete behavior
+under your project's real network conditions.</p>
+<h2 id="does-world-partition-work-with-portals">Does World Partition work with portals?</h2>
+<p>Yes. The runtime can request destination-side streaming around a linked portal.
+Transit can report <code>NotReady</code> until the destination area is loaded.</p>
+<p>Tune <strong>Streaming Preload Distance</strong>, <strong>Streaming Release Distance</strong>, and
+<strong>Streaming Query Interval</strong>. Blueprint code can query
+<code>IsLinkedPortalAreaReady()</code>.</p>
+<h2 id="which-sounds-travel-through-a-portal">Which sounds travel through a portal?</h2>
+<p>The source must be an active Audio Component with spatialization and
+spatialized attenuation enabled, and its audible range must reach the portal.</p>
+<p>UI/2D sounds, Source Bus assets, multiple-instance components, disabled sources,
+sources inside the portal sphere, and generated proxies are excluded. Portal
+audio supports one primary listener and one portal hop.</p>
+<h2 id="which-light-types-are-transmitted">Which Light types are transmitted?</h2>
+<p>Point and Spot Lights are transmitted. Directional Lights may be collected by
+the light-collection subsystem, but the transmission subsystem does not create
+Directional Light routes. Rect Lights are not transmitted.</p>
+<p>See <a href="../issues/index.html#portal-lighting">Portal lighting troubleshooting</a> for the
+remaining limitations.</p>
+<h2 id="is-material-clip-automatic">Is Material Clip automatic?</h2>
+<p>No. Enable <strong>Use Material Clip</strong> and integrate the supplied transit clip
+Material Function into the Actor's material. It reads four consecutive Custom
+Primitive Data values beginning at <strong>Clip Base Index</strong>; the default is <code>28</code>.</p>
+<h2 id="what-is-the-difference-between-material-clip-and-voxel-collision">What is the difference between Material Clip and Voxel Collision?</h2>
+<p><strong>Material Clip</strong> changes only how a compatible mesh is drawn at the boundary.
+<strong>Voxel Collision</strong> changes how supported collision is represented on both
+sides while the Actor is split. They are independent and may be used together
+or separately.</p>
+<h2 id="how-does-dynamic-cubemap-resolution-choose-a-size">How does dynamic cubemap resolution choose a size?</h2>
+<p>The policy starts at <strong>Lowest Visible Resolution</strong>, then evaluates the editable
+screen-height tier array. Thresholds are clamped and stable-sorted. Resolutions
+round up to a multiple of 8 in <code>8–2048</code> and are forced nondecreasing. Inside the
+safe proxy, the dedicated inside value applies and cannot be lower than the
+lowest value.</p>
+<p>There is no plugin-local VRAM budget that silently lowers the result. Use
+<code>stat WormholePortal</code> to observe memory and edit the policy when needed.</p>
+<h2 id="how-can-i-inspect-runtime-performance-or-a-transit-rejection">How can I inspect runtime performance or a transit rejection?</h2>
+<p>Run <code>stat WormholePortal</code>; use <code>stat gpu</code> or ProfileGPU for GPU cost. Filter
+Output Log by <code>LogWormhole</code>.</p>
+<p>For the complete transit rejection line in a non-Shipping build, first enter:</p>
+<div class="highlight"><pre><code>Log LogWormhole Verbose
+</code></pre></div>
+<p>Then reproduce the issue and collect <code>RuntimeReason</code>, <code>ResolveReason</code>, and
+<code>FailedComponents</code>. See <a href="../issues/index.html#transit-does-not-start">Issues</a>.</p>
+<h2 id="where-do-i-request-support">Where do I request support?</h2>
+<p>Wormhole Portal is published by <strong>Team Beaver Studio</strong>. Email the official
+support contact at
+<a href="mailto:beavergametech@gmail.com">beavergametech@gmail.com</a>, and include the
+checklist from <a href="../support/index.html">Compatibility, Releases, and Support</a>.</p>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

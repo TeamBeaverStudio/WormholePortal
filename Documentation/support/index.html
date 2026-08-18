@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Compatibility, Releases, and Support - Wormhole Portal</title>
+  <link rel="stylesheet" href="../stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="index.html">
+  <link rel="alternate" hreflang="ko" href="../ko/support/index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="../index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="Language">
+        <a hreflang="en" lang="en" href="index.html">English</a>
+        <a hreflang="ko" lang="ko" href="../ko/support/index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="Documentation">
+        <p class="section-nav__title">Documentation</p>
+        <div class="section-nav__links">
+          <a href="../index.html">Home</a>
+          <a href="../getting_started/index.html">Getting Started</a>
+          <a href="../features/index.html">Features</a>
+          <a href="../demo/index.html">Demo</a>
+          <a href="../reference.html">Reference</a>
+          <a href="../issues/index.html">Issues</a>
+          <a href="../faq/index.html">FAQ</a>
+          <a href="index.html" aria-current="page">Compatibility &amp; Support</a>
+        </div>
+      </nav>
+      <p class="offline-note">This documentation opens locally without a network connection.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="compatibility-releases-and-support">Compatibility, Releases, and Support</h1>
+<p>Wormhole Portal is published by <strong>Team Beaver Studio</strong>. This page defines the
+officially tested environment for version 1.0, records the release scope, and
+explains how to submit a reproducible support request.</p>
+<h2 id="compatibility-matrix">Compatibility matrix</h2>
+<p>The official tested and supported configuration for version 1.0 is:</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Supported target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Plugin version</td>
+<td><code>1.0</code></td>
+</tr>
+<tr>
+<td>Unreal Engine</td>
+<td><code>5.8</code></td>
+</tr>
+<tr>
+<td>Host/packaged platform</td>
+<td><code>Win64</code></td>
+</tr>
+<tr>
+<td>Rendering API</td>
+<td><code>DirectX 12</code></td>
+</tr>
+<tr>
+<td>Shader model</td>
+<td><code>SM6</code></td>
+</tr>
+<tr>
+<td>Portal render view</td>
+<td>One primary, perspective, non-stereo Game View</td>
+</tr>
+</tbody>
+</table>
+<p>Linux, macOS, DirectX 11, mobile, consoles, and dedicated-server targets are
+not declared supported for version 1.0. The renderer module is excluded from
+Server targets, so dedicated servers do not render portal visuals.</p>
+<p>Stereo/VR, split-screen, orthographic, Scene Capture, Reflection Capture,
+Planar Reflection, and other multi-view families do not composite the portal.
+Movie Render Queue supports the main deferred mono beauty output; see
+<a href="../issues/index.html#known-limitations">Issues</a> for the complete view limitations.</p>
+<p>An environment outside this matrix may or may not run, but it has not been
+declared supported. Do not make a production commitment until your exact engine
+build, RHI, hardware, packaging settings, and gameplay path have been validated.</p>
+<h2 id="required-plugin-dependencies">Required plugin dependencies</h2>
+<p>The plugin descriptor enables these Unreal Engine plugins:</p>
+<ul>
+<li><strong>Enhanced Input</strong>;</li>
+<li><strong>StateTree</strong>; and</li>
+<li><strong>Gameplay StateTree</strong>.</li>
+</ul>
+<p>Enhanced Input supports the included sample controls. The demo's shooter
+variant contains StateTree-based AI content. Keep the declared dependencies
+available and enabled when loading the complete plugin and demo.</p>
+<p>The runtime renderer is not part of a Server target. C++ gameplay modules that
+use public Wormhole Portal types should add <code>WormholePortalRuntime</code> to their
+module dependencies; see <a href="../reference.html#integration-examples">Integration examples</a>.</p>
+<h2 id="version-and-release-notes">Version and release notes</h2>
+<h3 id="version-10-unreal-engine-58">Version 1.0 — Unreal Engine 5.8</h3>
+<p>Initial Fab release scope:</p>
+<ul>
+<li>physically inspired volumetric linked-portal rendering;</li>
+<li>linked metric authoring, physical scale, and render-only visual scale;</li>
+<li>Character, Pawn, Projectile, and Physics transit;</li>
+<li>optional Material Clip and baked Voxel Collision;</li>
+<li>portal-aware line traces;</li>
+<li>portal audio and Point/Spot light transmission;</li>
+<li>World Partition destination preloading;</li>
+<li>Transit Manager, LUT baking, diagnostics, and included demo content; and</li>
+<li>Blueprint and C++ runtime interfaces.</li>
+</ul>
+<p>Before adopting the release, review <a href="../issues/index.html#known-limitations">Known limitations</a>,
+especially the supported view, platform, Physics, Voxel, audio, and lighting
+boundaries.</p>
+<h2 id="upgrade-checklist">Upgrade checklist</h2>
+<p>When installing a replacement package or a later compatible build:</p>
+<ol>
+<li>Commit or back up the project, configuration, and any copied sample content.</li>
+<li>Close Unreal Editor and remove/disable the old plugin version through the
+   normal launcher or project workflow.</li>
+<li>Install the package that matches the project's supported Unreal Engine
+   version.</li>
+<li>Confirm Enhanced Input, StateTree, and Gameplay StateTree dependencies are
+   enabled.</li>
+<li>Restart the Editor and resolve any <code>WPPortalTrace</code> startup notification.</li>
+<li>Confirm Portal Actors remain at unit Transform Scale and linked pairs retain
+   their metric values.</li>
+<li>Re-bake LUT data when the LUT schema/domain or portal metrics changed.</li>
+<li>Re-bake Voxel data after collision or participating Primitive changes.</li>
+<li>Verify <code>/WormholePortal/WormholePortal/Generated/LUT</code> in <strong>Additional Asset Directories to
+   Cook</strong>.</li>
+<li>Run PIE, Standalone, and a Win64 DX12 SM6 packaged-build smoke test.</li>
+</ol>
+<p>Do not overwrite the only copy of production content inside the installed demo
+folder. Duplicate adapted sample assets into the project's own <code>/Game/...</code>
+content first.</p>
+<h2 id="before-requesting-support">Before requesting support</h2>
+<p>Check <a href="../getting_started/index.html">Getting Started</a>, <a href="../faq/index.html">FAQ</a>, and
+<a href="../issues/index.html">Issues</a> first. Then prepare:</p>
+<ul>
+<li>plugin version and the source of the installed package;</li>
+<li>exact Unreal Engine version, including any source-build changes;</li>
+<li>Windows version, GPU, driver, <code>Win64</code>, <code>DX12</code>, and <code>SM6</code> status;</li>
+<li>PIE, SIE, Standalone, packaged, or Movie Render Queue context;</li>
+<li>the smallest deterministic reproduction steps;</li>
+<li>whether the included demo reproduces the issue;</li>
+<li>relevant Blueprint screenshots or a minimal C++ call site;</li>
+<li>Portal Actor, Transit Component, and Project Settings screenshots;</li>
+<li>Output Log entries filtered by <code>LogWormhole</code>;</li>
+<li>the full non-Shipping Verbose transit rejection line when applicable; and</li>
+<li><code>stat WormholePortal</code> output for render/capture reports.</li>
+</ul>
+<p>Remove passwords, access tokens, licensed third-party assets, personal data, and
+other secrets before attaching logs or a reproduction project.</p>
+<h2 id="contact-and-response-scope">Contact and response scope</h2>
+<p>The official support contact for this release is
+<a href="mailto:beavergametech@gmail.com">beavergametech@gmail.com</a>. Use a concise
+subject such as <code>Wormhole Portal 1.0 / UE 5.8 / &lt;short issue&gt;</code> and include the
+checklist above in the first message.</p>
+<p>Support is provided for reproducible plugin defects and documented workflows in
+the official compatibility matrix. The following normally require project-side
+engineering or validation rather than a plugin defect fix:</p>
+<ul>
+<li>unsupported engine versions, platforms, RHIs, shader models, or view types;</li>
+<li>general Unreal Engine installation, packaging, networking, or source-build
+  issues unrelated to Wormhole Portal;</li>
+<li>custom gameplay, material, AI, rendering, or build-system implementation;</li>
+<li>third-party plugin conflicts without a minimal reproduction; and</li>
+<li>performance targets without a representative scene, capture policy, and
+  profiling data.</li>
+</ul>
+<p>No response-time or future-version guarantee is implied by this documentation.
+Use the Fab product page to confirm the currently published package and listing
+information before downloading or updating.</p>
+<h2 id="what-support-covers">What support covers</h2>
+<p>Useful reports can lead to documentation corrections, reproducible defect
+investigation, configuration guidance, or a workaround within the declared
+release scope. A complete report does not guarantee a particular resolution,
+but it allows Team Beaver Studio to distinguish a plugin defect from an
+unsupported environment or project-specific integration issue quickly.</p>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

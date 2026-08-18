@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>데모 - Wormhole Portal</title>
+  <link rel="stylesheet" href="../stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="../../demo/index.html">
+  <link rel="alternate" hreflang="ko" href="index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">본문으로 건너뛰기</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="../index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="언어">
+        <a hreflang="en" lang="en" href="../../demo/index.html">English</a>
+        <a hreflang="ko" lang="ko" href="index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="문서 목차">
+        <p class="section-nav__title">문서 목차</p>
+        <div class="section-nav__links">
+          <a href="../index.html">홈</a>
+          <a href="../getting_started/index.html">시작하기</a>
+          <a href="../features/index.html">기능</a>
+          <a href="index.html" aria-current="page">데모</a>
+          <a href="../reference.html">레퍼런스</a>
+          <a href="../issues/index.html">문제 해결</a>
+          <a href="../faq/index.html">FAQ</a>
+          <a href="../support/index.html">호환성 및 지원</a>
+        </div>
+      </nav>
+      <p class="offline-note">이 문서는 네트워크 연결 없이 로컬 파일로 열립니다.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="_1">데모</h1>
+<p>플러그인에는 기능을 직접 실행하고 구현 예를 살펴볼 수 있는 샘플 맵과
+<code>WormholePortalSample</code> 모듈이 포함되어 있습니다. 새 프로젝트에 적용하기
+전 아래 공개 데모를 먼저 실행하세요.</p>
+<h2 id="_2">포함된 데모 열기</h2>
+<ol>
+<li>Content Browser의 <strong>Settings</strong>에서 <strong>Show Plugin Content</strong>를 켭니다.</li>
+<li>다음 맵을 엽니다.</li>
+</ol>
+<div class="highlight"><pre><code>/WormholePortal/WormholePortal/Demo/Lv_WormholePortal_Content_Demo
+</code></pre></div>
+<ol>
+<li>Play In Editor를 실행하고 맵 안의 안내 표지와 순서를 따라갑니다.</li>
+</ol>
+<p>Content Browser에는
+<code>WormholePortal Content/WormholePortal/Demo/Lv_WormholePortal_Content_Demo</code>로
+표시됩니다.</p>
+<div class="admonition warning">
+<p class="admonition-title">공개 시작 맵</p>
+<p><code>Lv_WormholePortal_Content_Demo</code>가 문서와 Fab 배포물의 기준 샘플입니다.
+<code>Dev_Demo</code>는 내부 제작·검증용 맵이며 배포되는 공개 작업 흐름에 포함되지
+않습니다. 프로젝트에서 참조하지 마세요.</p>
+</div>
+<h2 id="_3">맵에서 확인할 내용</h2>
+<p>데모는 기능을 단계별로 확인할 수 있도록 구성되어 있습니다.</p>
+<table>
+<thead>
+<tr>
+<th>구간</th>
+<th>확인할 내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stage 0</td>
+<td>기본 조작, 안내 링크와 Portal Gun을 이용한 연결된 포털 생성</td>
+</tr>
+<tr>
+<td>Stage 1</td>
+<td>Character 및 일반 Actor Transit, 연결과 Metric의 기본 동작</td>
+</tr>
+<tr>
+<td>Stage 2</td>
+<td>긴 Mesh의 부분 통과, Material Clip, Voxel Collision과 고급 Transit 설정</td>
+</tr>
+<tr>
+<td>Stage 3</td>
+<td>포털 인식 Line Trace와 공개 Blueprint/C++ API 사용 예</td>
+</tr>
+<tr>
+<td>Stage 4</td>
+<td>포털을 통한 Spatial Audio와 Point/Spot Light 전달</td>
+</tr>
+</tbody>
+</table>
+<p>맵의 안내가 특정 기능을 잠그고 있다면 앞 구간의 조건을 먼저 완료하세요.
+렌더링만 보지 말고 Actor가 경계에 걸친 상태, 출구에서의 속도와 방향,
+Trace의 논리적 Hit 순서도 함께 확인하는 것이 좋습니다.</p>
+<h2 id="_4">예제 구현 살펴보기</h2>
+<p>다음 항목은 실제 프로젝트에 통합할 때 특히 유용합니다.</p>
+<ul>
+<li>Portal Actor 쌍의 <strong>Linked Portal</strong> 및 Metric 설정</li>
+<li>Character, Projectile, Pawn, Physics Actor의 <code>WPTransitComponent</code> 구성</li>
+<li><code>M_VisualClip</code>과
+  <code>/WormholePortal/WormholePortal/Materials/MaterialFunctions/MF_WPTransitClip</code> 연결 방식</li>
+<li><code>BP_LongMesh</code>, <code>BP_PhysicsCube</code>, <code>BP_ProjectileCube</code>의 Transit 예제</li>
+<li><code>BP_Stage3Starter</code>와 Stage 3 예제의 Portal-aware Line Trace 사용 방식</li>
+<li><code>UWPPortalGunComponent</code>가 최종 Physical Metric을 먼저 초기화한 뒤
+  <code>SetPortalVisualScale</code>로 성장 효과를 만드는 방식</li>
+<li>데모가 참조하는 읽기 전용 Voxel 데이터와 Portal별로 명시적으로 선택할 수
+  있는 LUT Asset <code>/WormholePortal/WormholePortal/Generated</code></li>
+</ul>
+<p><code>/WormholePortal/WormholePortal/Generated</code>는 플러그인의 생성 데이터 루트입니다.
+포함된 데모는 이 경로의 Voxel 데이터를 참조합니다. Portal에 <strong>LUT Asset
+Override</strong>가 없다면 Runtime은 기본적으로
+<code>/WormholePortal/WormholePortal/Generated/LUT/DA_WPLUTCatalog</code>에서 Catalog를
+찾습니다. 호환되는 Baked LUT가 없고 <strong>Allow Runtime LUT Fallback</strong>이 켜져 있으면
+호환되는 임시 데이터를 비동기로 생성합니다. 새 LUT와 Voxel Bake의 기본 출력은
+이 Plugin Content 경로 아래의 <code>LUT</code>, <code>Voxels</code> 하위 디렉터리입니다. Bake하는 동안
+플러그인 디렉터리에 쓸 수 있어야 합니다.</p>
+<p>필요한 속성 및 API 계약은 <a href="../reference.html">레퍼런스</a>와 함께 확인하세요.</p>
+<h2 id="_5">입력과 플러그인 의존성</h2>
+<p>데모는 Enhanced Input 기반입니다. 아래 바인딩은 UE 5.8에서 배포 대상
+Mapping Context를 직접 읽어 검증했습니다.</p>
+<table>
+<thead>
+<tr>
+<th>Mapping Context</th>
+<th>Input Action</th>
+<th>키보드 / 마우스</th>
+<th>게임패드</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IMC_Default</code></td>
+<td><code>IA_Jump</code></td>
+<td><code>Space Bar</code></td>
+<td>Face Button Bottom</td>
+</tr>
+<tr>
+<td><code>IMC_Default</code></td>
+<td><code>IA_Move</code></td>
+<td><code>W</code>, <code>A</code>, <code>S</code>, <code>D</code>; 방향키</td>
+<td>Left Stick 2D</td>
+</tr>
+<tr>
+<td><code>IMC_Default</code></td>
+<td><code>IA_Look</code></td>
+<td>—</td>
+<td>Right Stick 2D</td>
+</tr>
+<tr>
+<td><code>IMC_MouseLook</code></td>
+<td><code>IA_MouseLook</code></td>
+<td>Mouse 2D</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>IMC_Weapons</code></td>
+<td><code>IA_SwapWeapon</code></td>
+<td>Left Shift</td>
+<td>Face Button Top</td>
+</tr>
+<tr>
+<td><code>IMC_Weapons</code></td>
+<td><code>IA_Shoot</code></td>
+<td>Left Mouse Button</td>
+<td>Right Trigger Axis; Right Shoulder</td>
+</tr>
+<tr>
+<td><code>IMC_Weapons</code></td>
+<td><code>IA_FirePortalB</code></td>
+<td>Right Mouse Button</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>IMC_Weapons</code></td>
+<td><code>IA_PortalDir</code></td>
+<td>Mouse Wheel Axis</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>IMC_Weapons</code></td>
+<td><code>IA_Grab</code></td>
+<td>Left Shift</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>리매핑한 경우에는 고정된 Keyboard Layout을 가정하지 말고 맵 안의 안내
+UI와 <code>/WormholePortal/WormholePortal/Demo/Input</code>,
+<code>/WormholePortal/WormholePortal/Demo/Variant_Shooter/Input</code>의 현재 Mapping Context를 최종
+기준으로 삼으세요.</p>
+<p>샘플의 Shooter/AI 콘텐츠는 <code>EnhancedInput</code>, <code>StateTree</code>,
+<code>GameplayStateTree</code> 플러그인을 사용합니다. 이 플러그인은
+<code>WormholePortal.uplugin</code>에서 활성화됩니다. Runtime API만 사용하는 자체
+게임플레이에는 샘플 Shooter 구조를 복사할 필요가 없습니다.</p>
+<h2 id="_6">샘플 콘텐츠를 안전하게 재사용하기</h2>
+<p><code>WormholePortalSample</code>과 <code>/WormholePortal/WormholePortal/Demo</code>는 학습 및 통합 예제입니다.
+프로덕션 게임플레이의 필수 계층이 아닙니다.</p>
+<p>샘플 모듈에는 <code>UWPPortalGunComponent</code>, <code>UWPGrabComponent</code>,
+<code>AWPSampleActorSpawner</code>, <code>AWPTransitBomb</code>, <code>AWPSampleTurret</code>, <code>AWPDemoRoom</code>,
+<code>AWPDemoRoomManager</code>가 공개 예제로 포함됩니다. 지원되는 Runtime 계약은
+각 클래스의 구현과 <a href="../reference.html#integration-examples">연동 예제</a>를 함께
+확인하세요.</p>
+<ol>
+<li>필요한 Blueprint 또는 C++ 흐름만 자체 클래스에 적용합니다.</li>
+<li>샘플 Asset을 직접 수정해야 한다면 먼저 프로젝트 Content로 복사해
+   플러그인 업데이트와 분리합니다.</li>
+<li>복사한 Asset의 Plugin Content 참조와 Input Mapping Context를
+   Reference Viewer로 확인합니다.</li>
+<li>자체 Collision Channel, Replication, Packaging 및 목표 플랫폼에서
+   다시 검증합니다.</li>
+</ol>
+<p>런타임 C++ 모듈은 <code>WormholePortalRuntime</code>에만 의존할 수 있습니다. 샘플
+Portal Gun을 직접 사용할 때만 프로젝트 모듈에 <code>WormholePortalSample</code>을
+추가하세요.</p>
+<h2 id="_7">데모 문제 해결</h2>
+<table>
+<thead>
+<tr>
+<th>증상</th>
+<th>확인할 항목</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>맵을 찾을 수 없음</td>
+<td><strong>Show Plugin Content</strong>가 켜져 있는지 확인하고 정확한 <code>/WormholePortal/WormholePortal/Demo/Lv_WormholePortal_Content_Demo</code> 경로를 사용합니다.</td>
+</tr>
+<tr>
+<td>입력이 동작하지 않음</td>
+<td>PIE 창에 포커스를 두고 Enhanced Input과 포함된 Mapping Context가 활성화되었는지 확인합니다.</td>
+</tr>
+<tr>
+<td>포털이 검게 보이거나 합성되지 않음</td>
+<td>Win64, DX12, SM6의 Primary Perspective Non-stereo Game View인지 확인합니다.</td>
+</tr>
+<tr>
+<td>Transit이 거부됨</td>
+<td><code>LogWormhole</code>의 <code>RuntimeReason</code>, <code>ResolveReason</code>, <code>FailedComponents</code>와 Transit Manager 상태를 확인합니다.</td>
+</tr>
+<tr>
+<td>LUT 준비를 기다림</td>
+<td><strong>Tools &gt; Wormhole Portal &gt; Bake All LUTs</strong>에서 데모 Metric을 포함하는 LUT를 Bake합니다.</td>
+</tr>
+</tbody>
+</table>
+<p>더 자세한 진단은 <a href="../issues/index.html">문제 해결</a>을, 설치부터 직접 포털을 만드는
+과정은 <a href="../getting_started/index.html">시작하기</a>를 참고하세요. 공식 지원이 필요하면
+<a href="../support/index.html">호환성 및 지원</a>의 체크리스트와 연락처를 사용하세요.</p>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

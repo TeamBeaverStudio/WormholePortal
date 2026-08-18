@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Getting Started - Wormhole Portal</title>
+  <link rel="stylesheet" href="../stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="index.html">
+  <link rel="alternate" hreflang="ko" href="../ko/getting_started/index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="../index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="Language">
+        <a hreflang="en" lang="en" href="index.html">English</a>
+        <a hreflang="ko" lang="ko" href="../ko/getting_started/index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="Documentation">
+        <p class="section-nav__title">Documentation</p>
+        <div class="section-nav__links">
+          <a href="../index.html">Home</a>
+          <a href="index.html" aria-current="page">Getting Started</a>
+          <a href="../features/index.html">Features</a>
+          <a href="../demo/index.html">Demo</a>
+          <a href="../reference.html">Reference</a>
+          <a href="../issues/index.html">Issues</a>
+          <a href="../faq/index.html">FAQ</a>
+          <a href="../support/index.html">Compatibility &amp; Support</a>
+        </div>
+      </nav>
+      <p class="offline-note">This documentation opens locally without a network connection.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="getting-started">Getting Started</h1>
+<p>Build and traverse your first Wormhole Portal pair in 5–10 minutes. At the end,
+the linked destination will be visible through the opening and a playable
+Character will be able to cross it.</p>
+<h2 id="what-you-will-build">What you will build</h2>
+<ul>
+<li><strong>Portal rendering:</strong> the destination environment appears through a
+  volumetric portal.</li>
+<li><strong>Character transit:</strong> the player crosses the boundary and emerges from the
+  linked endpoint.</li>
+</ul>
+<h2 id="before-you-begin">Before you begin</h2>
+<p>You need:</p>
+<ul>
+<li>Unreal Engine 5.8;</li>
+<li>a Win64 project using DirectX 12 and SM6, with a Perspective viewport in Game
+  View;</li>
+<li>a project with a playable Character Blueprint; and</li>
+<li>Wormhole Portal installed from Fab, enabled in <strong>Edit &gt; Plugins</strong>, and loaded
+  after an Editor restart.</li>
+</ul>
+<p>This quickstart assumes the Character has a root Capsule Component, Character
+Movement, and a non-simulating Skeletal Mesh.</p>
+<h2 id="1-configure-portal-tracing">1. Configure portal tracing</h2>
+<p>After the plugin starts, a notification appears when the project does not have
+the required portal trace channel.</p>
+<ol>
+<li>Select <strong>Add Automatically</strong> in the notification.</li>
+<li>The plugin adds <code>WPPortalTrace</code> to <code>Config/DefaultEngine.ini</code> and aligns its
+   setting with the assigned Game Trace Channel.</li>
+<li>Restart the Editor before using portal-aware traces.</li>
+</ol>
+<div class="admonition warning">
+<p class="admonition-title">Restart required</p>
+<p>The channel is not reliable until the Editor restarts. If the notification
+returns, confirm the configuration file was writable and repeat the setup.</p>
+</div>
+<p><code>WPPortalTrace</code> is reserved for internal portal detection by portal-aware
+traces. Character transit uses overlap handling independently, but configuring
+the channel now avoids a partially configured project.</p>
+<details class="info">
+<summary>Configure WPPortalTrace manually</summary>
+<ol>
+<li>Open <strong>Edit &gt; Project Settings &gt; Engine &gt; Collision</strong>.</li>
+<li>Add a <strong>Trace Channel</strong> named <code>WPPortalTrace</code>.</li>
+<li>Set its <strong>Default Response</strong> to <strong>Ignore</strong>.</li>
+<li>Open <strong>Project Settings &gt; Plugins &gt; Wormhole Portal</strong>.</li>
+<li>Set <strong>Portal Trace Channel</strong> to the Game Trace Channel assigned to
+   <code>WPPortalTrace</code>.</li>
+<li>Restart the Editor.</li>
+</ol>
+</details>
+<h2 id="2-create-a-portal-pair">2. Create a portal pair</h2>
+<ol>
+<li>Open <strong>Place Actors</strong> and search for <code>WormholePortalActor</code>.</li>
+<li>Place two native <code>WormholePortalActor</code> instances at different locations.</li>
+<li>Select the first portal and set <strong>Linked Portal</strong> to the second.</li>
+</ol>
+<p>The reciprocal link is created automatically. The first endpoint's metric is
+copied to the linked endpoint, so configure the pair from one side.</p>
+<div class="admonition warning">
+<p class="admonition-title">Keep Actor Scale at one</p>
+<p>Leave both Transform scales at <code>(1, 1, 1)</code>. Use the portal's Metric
+properties to control its physical dimensions.</p>
+</div>
+<p>The authoring defaults are:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Controls</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Portal Radius</strong></td>
+<td><code>50 cm</code></td>
+<td>Radius of the central seam used for traversal</td>
+</tr>
+<tr>
+<td><strong>Throat Half Length</strong></td>
+<td><code>100 cm</code></td>
+<td>Half of the connected throat length</td>
+</tr>
+<tr>
+<td><strong>Transition Length</strong></td>
+<td><code>200 cm</code></td>
+<td>Blend distance into and out of the throat</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-bake-the-visual-data">3. Bake the visual data</h2>
+<p>Bake the lookup data before the first test for deterministic startup behavior.</p>
+<ol>
+<li>Open the main <strong>Tools</strong> menu.</li>
+<li>Under <strong>Wormhole Portal</strong>, select <strong>Bake All LUTs</strong>.</li>
+<li>In <strong>LUT Bake Settings</strong>, choose <strong>Quality: Balanced</strong>.</li>
+<li>Choose <strong>Domain: Current Level Auto</strong>.</li>
+<li>Select <strong>Bake</strong>.</li>
+<li>Wait for the success notification beginning with <code>LUT ready:</code>.</li>
+</ol>
+<p>Wormhole Portal can create compatible transient lookup data asynchronously when
+<strong>Allow Runtime LUT Fallback</strong> is enabled. Baking is still recommended when
+predictable startup readiness matters.</p>
+<h2 id="4-enable-character-transit">4. Enable Character transit</h2>
+<ol>
+<li>Open the playable Character Blueprint.</li>
+<li>In the Components panel, add <code>WPTransitComponent</code>.</li>
+<li>Keep <strong>Transit Enabled</strong> selected.</li>
+<li>Keep <strong>Transit Type</strong> set to <strong>Auto</strong>.</li>
+<li><strong>Compile</strong> and <strong>Save</strong> the Blueprint.</li>
+</ol>
+<p>Use <strong>Tools &gt; Wormhole Portal &gt; Transit Manager</strong> when several Actors need to
+be inspected or configured. A <strong>Ready</strong> row means the authoring setup resolves
+to a supported transit handler; it does not replace a runtime crossing test.</p>
+<h2 id="5-test-the-portal">5. Test the portal</h2>
+<p>Start Play In Editor and approach the first endpoint.</p>
+<ul>
+<li><strong>Portal rendering:</strong> look through the opening and confirm that the linked
+  environment is visible.</li>
+<li><strong>Character transit:</strong> walk across the boundary and confirm that the
+  Character emerges from the linked endpoint.</li>
+</ul>
+<p>When both checks pass, the pair is ready for level design and gameplay
+integration.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>What to check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The <code>WPPortalTrace</code> warning returns</td>
+<td>Select <strong>Add Automatically</strong>, confirm the config update completed, and restart the Editor.</td>
+</tr>
+<tr>
+<td>The portal is not visible</td>
+<td>Confirm <strong>Linked Portal</strong>, unit Actor Scale, a primary Perspective Game View in the supported Win64 DX12 SM6 environment, and a compatible LUT.</td>
+</tr>
+<tr>
+<td>The Character does not cross</td>
+<td>Confirm <code>WPTransitComponent</code>, <strong>Transit Type: Auto</strong>, <strong>Transit Enabled</strong>, and the expected Capsule and Character Movement components.</td>
+</tr>
+<tr>
+<td>The log reports <code>RuntimeReason=EWPTransitFailReason::DoesNotFitGate</code></td>
+<td>The Actor's projected traversal cross-section does not fit the source gate/core radius. Increase <strong>Portal Radius</strong> or reduce/fix the Actor's collision bounds; do not scale the Portal Actor.</td>
+</tr>
+<tr>
+<td>Transit Manager does not report <code>Ready</code></td>
+<td>Select the Actor and resolve the exact setup item shown before testing again.</td>
+</tr>
+<tr>
+<td>A packaged build cannot find baked LUT data</td>
+<td>Confirm <code>/WormholePortal/WormholePortal/Generated/LUT</code> is included in <strong>Additional Asset Directories to Cook</strong>.</td>
+</tr>
+</tbody>
+</table>
+<p>For a complete non-Shipping transit rejection line, raise the category to
+Verbose before reproducing the problem:</p>
+<div class="highlight"><pre><code>Log LogWormhole Verbose
+</code></pre></div>
+<p>Also run <code>stat WormholePortal</code> for runtime counters and timings. See
+<a href="../issues/index.html">Issues</a> for the full diagnostic format and failure enums.</p>
+<h2 id="cook-generated-lut-data">Cook generated LUT data</h2>
+<p>The code-default <strong>Generated LUT Asset Path</strong> is
+<code>/WormholePortal/WormholePortal/Generated/LUT</code>. This is the plugin's generated
+LUT directory.
+The Editor module synchronizes the configured path with <strong>Project Settings &gt;
+Packaging &gt; Additional Asset Directories to Cook</strong>.</p>
+<p>Verify the following entry before shipping:</p>
+<div class="highlight"><pre><code><span class="k">[/Script/UnrealEd.ProjectPackagingSettings]</span>
+<span class="na">+DirectoriesToAlwaysCook=(Path</span><span class="o">=</span><span class="s">&quot;/WormholePortal/WormholePortal/Generated/LUT&quot;</span><span class="na">)</span>
+</code></pre></div>
+<p>A custom LUT directory must be a valid Unreal Long Package Directory beginning
+with the case-sensitive prefix <code>/WormholePortal/</code>. If the project configuration
+is read-only, add the validated path to the Packaging settings manually.</p>
+<h2 id="next-steps">Next steps</h2>
+<ul>
+<li>Open the included examples in the <a href="../demo/index.html">Demo guide</a>.</li>
+<li>Learn the rendering, transit, trace, audio, lighting, and streaming systems in
+  <a href="../features/index.html">Features</a>.</li>
+<li>Copy accurate Blueprint and C++ patterns from <a href="../reference.html">Reference</a>.</li>
+<li>Review limitations and workarounds in <a href="../issues/index.html">Issues</a>.</li>
+<li>Check the supported target and release checklist in
+  <a href="../support/index.html">Compatibility and Support</a>.</li>
+</ul>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

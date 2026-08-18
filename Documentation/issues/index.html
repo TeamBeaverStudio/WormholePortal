@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Issues - Wormhole Portal</title>
+  <link rel="stylesheet" href="../stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="index.html">
+  <link rel="alternate" hreflang="ko" href="../ko/issues/index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="../index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="Language">
+        <a hreflang="en" lang="en" href="index.html">English</a>
+        <a hreflang="ko" lang="ko" href="../ko/issues/index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="Documentation">
+        <p class="section-nav__title">Documentation</p>
+        <div class="section-nav__links">
+          <a href="../index.html">Home</a>
+          <a href="../getting_started/index.html">Getting Started</a>
+          <a href="../features/index.html">Features</a>
+          <a href="../demo/index.html">Demo</a>
+          <a href="../reference.html">Reference</a>
+          <a href="index.html" aria-current="page">Issues</a>
+          <a href="../faq/index.html">FAQ</a>
+          <a href="../support/index.html">Compatibility &amp; Support</a>
+        </div>
+      </nav>
+      <p class="offline-note">This documentation opens locally without a network connection.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="issues">Issues</h1>
+<p>This page lists current limitations and the first checks to perform when
+Wormhole Portal does not behave as expected.</p>
+<div class="admonition info">
+<p class="admonition-title">Current compatibility target</p>
+<p>Version 1.0 is officially tested and supported on Unreal Engine 5.8,
+Win64, DirectX 12, and SM6. See
+<a href="../support/index.html">Compatibility and Support</a> before using another environment.</p>
+</div>
+<h2 id="known-limitations">Known limitations</h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Current limitation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Supported release environment</td>
+<td>Unreal Engine 5.8, Win64, DirectX 12, and SM6. Other environments are not declared supported.</td>
+</tr>
+<tr>
+<td>Rendering views</td>
+<td>Portal compositing supports one primary, perspective, non-stereo Game View.</td>
+</tr>
+<tr>
+<td>Unsupported views</td>
+<td>Scene Capture, Reflection Capture, Planar Reflection, orthographic, stereo/VR, split-screen, and other multi-view families do not composite the portal.</td>
+</tr>
+<tr>
+<td>Movie Render Queue</td>
+<td>The main deferred mono beauty output is supported. Custom passes, Virtual Texture passes, stereo, and multi-view outputs omit the composite.</td>
+</tr>
+<tr>
+<td>Server targets</td>
+<td>The renderer module is excluded from Server targets. Do not expect portal visuals on a dedicated server.</td>
+</tr>
+<tr>
+<td>Portal scale</td>
+<td>Both linked Portal Actors must use Actor Scale <code>(1, 1, 1)</code>. Use metric or visual-scale APIs instead.</td>
+</tr>
+<tr>
+<td>Transit primitives</td>
+<td>Transit requires actor-owned, Movable, collision-enabled Primitive Components. Instanced Static Mesh Components are unsupported.</td>
+</tr>
+<tr>
+<td>Physics transit</td>
+<td>At least one non-instanced Static Mesh Component with a valid mesh, or supported Shape Component, must have Physics collision enabled and be simulating.</td>
+</tr>
+<tr>
+<td>Voxel collision</td>
+<td>Baking supports non-instanced Static Mesh Simple Collision plus Box, Sphere, and Capsule Components. Static Mesh elements may be Sphere, Box, Capsule, or Convex.</td>
+</tr>
+<tr>
+<td>Portal traces</td>
+<td>Public Blueprint APIs provide Line Trace By Channel operations. Object Type, Profile, and Sweep variants are not implemented.</td>
+</tr>
+<tr>
+<td>Ray transform</td>
+<td><code>Transform Ray Through Portal</code> accepts a ray approaching the portal from outside toward its interior.</td>
+</tr>
+<tr>
+<td>Trace exit offset</td>
+<td>Portal Exit Offset prevents immediate self-hit but does not consume remaining distance. The offset gap is not collision-tested.</td>
+</tr>
+<tr>
+<td>Audio</td>
+<td>Portal audio supports one primary listener, one portal hop, and eligible active spatialized 3D Audio Components.</td>
+</tr>
+<tr>
+<td>Lighting</td>
+<td>Only Point and Spot Lights are transmitted. Directional Lights may be collected internally but are not transmitted.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-portal-is-not-visible">The portal is not visible</h2>
+<p>Check in order:</p>
+<ol>
+<li>The Portal Actor has a valid <strong>Linked Portal</strong>.</li>
+<li>Both endpoints use Actor Scale <code>(1, 1, 1)</code>.</li>
+<li>The project is running Win64 with DirectX 12 and SM6, using a primary
+   Perspective Game View.</li>
+<li>The view is not a Scene Capture, reflection, stereo/VR, or split-screen
+   family.</li>
+<li>If <strong>Transition Length</strong> is greater than zero, wait for the asynchronous
+   runtime fallback or bake a compatible LUT.</li>
+<li>Filter <strong>Output Log</strong> by <code>LogWormhole</code> and inspect Renderer entries for the
+   <code>Reason=...</code> field. To include unsupported-view result changes, temporarily
+   run <code>Log LogWormhole VeryVerbose</code> before reproducing the issue.</li>
+</ol>
+<p>Typical renderer reasons include <code>InvalidPairOrTransform</code>, <code>MetricInvalid</code>,
+<code>MetricMismatch</code>, <code>UnsupportedScale</code>, <code>CaptureNotSubmitted</code>,
+<code>MissingTextureReference</code>, <code>UnresolvedReferencedTexture</code>, and
+<code>WrongTextureDimension</code>.</p>
+<p>Unsupported-view reasons include <code>SceneCaptureOrReflection</code>,
+<code>UnsupportedGameProjectionOrFeatureLevel</code>, <code>StereoView</code>,
+<code>NotExactlyOneFamilyView</code>, and <code>NonPrimaryPlayerView</code>.</p>
+<h2 id="the-wpportaltrace-warning-keeps-appearing">The WPPortalTrace warning keeps appearing</h2>
+<p>Wormhole Portal requires a dedicated Trace Channel named <code>WPPortalTrace</code>. Use
+<strong>Add Automatically</strong> in the startup notification when possible, then restart
+the Editor.</p>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Resolution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wrong channel type</td>
+<td>Make sure <code>WPPortalTrace</code> is a <strong>Trace Channel</strong>, not an Object Channel.</td>
+</tr>
+<tr>
+<td>Channel mismatch</td>
+<td>Align <strong>Portal Trace Channel</strong> in plugin settings with the Game Trace Channel assigned by Unreal.</td>
+</tr>
+<tr>
+<td>No free Game channel</td>
+<td>Free an unused Game Trace Channel before retrying.</td>
+</tr>
+<tr>
+<td>Read-only configuration</td>
+<td>Check out or make <code>Config/DefaultEngine.ini</code> writable.</td>
+</tr>
+<tr>
+<td>Manual setup</td>
+<td>Create <code>WPPortalTrace</code> with <strong>Default Response: Ignore</strong>, align the plugin setting, and restart.</td>
+</tr>
+</tbody>
+</table>
+<p>Do not pass <code>WPPortalTrace</code> as the ordinary collision channel for a
+portal-aware trace. It is reserved for internal portal detection.</p>
+<h2 id="lut-baking-fails">LUT baking fails</h2>
+<p>Open <strong>Tools &gt; Wormhole Portal &gt; Bake All LUTs</strong>, then check:</p>
+<ul>
+<li>an Editor World and at least one Portal Actor exist;</li>
+<li><strong>Generated LUT Asset Path</strong> is a valid Unreal Long Package Directory with
+  the case-sensitive prefix <code>/Game/</code>;</li>
+<li>the portal metric is valid;</li>
+<li>the requested <code>Transition Length / Portal Radius</code> range is inside the chosen
+  LUT domain;</li>
+<li>source control permits generated packages to be checked out and saved; and</li>
+<li>the bake was not cancelled.</li>
+</ul>
+<p>The code-default generated directory is:</p>
+<div class="highlight"><pre><code>/WormholePortal/WormholePortal/Generated/LUT
+</code></pre></div>
+<p>Project Content paths such as <code>/Game/...</code> are not valid generated LUT
+locations. A success notification begins with <code>LUT ready:</code>. A baked LUT is
+optional while <strong>Allow Runtime LUT Fallback</strong> is enabled; <code>Transition Length =
+0</code> uses the analytic path and needs no LUT.</p>
+<h2 id="the-lut-works-in-editor-but-not-in-a-packaged-build">The LUT works in Editor but not in a packaged build</h2>
+<p>The Editor module attempts to synchronize <strong>Generated LUT Asset Path</strong> with
+<code>DirectoriesToAlwaysCook</code>. If it reports that the project configuration could
+not be updated:</p>
+<ol>
+<li>Check out or make the reported config file writable.</li>
+<li>Restart the Editor so startup synchronization runs again, or add the path
+   manually under <strong>Project Settings &gt; Packaging</strong>.</li>
+<li>Confirm the configured path appears in <strong>Additional Asset Directories to
+   Cook</strong>.</li>
+</ol>
+<p>The default entry is:</p>
+<div class="highlight"><pre><code><span class="k">[/Script/UnrealEd.ProjectPackagingSettings]</span>
+<span class="na">+DirectoriesToAlwaysCook=(Path</span><span class="o">=</span><span class="s">&quot;/WormholePortal/WormholePortal/Generated/LUT&quot;</span><span class="na">)</span>
+</code></pre></div>
+<p>For a custom path, use the validated <code>/WormholePortal/...</code> value exactly.</p>
+<h2 id="runtime-metric-changes-are-rejected">Runtime metric changes are rejected</h2>
+<p><code>Set Portal Radius</code>, <code>Set Throat Half Length</code>, and <code>Set Transition Length</code> are
+independent authoring/pre-BeginPlay setters. Calls after BeginPlay are rejected
+to prevent the three physical values from drifting apart.</p>
+<p>At runtime:</p>
+<ol>
+<li>call <strong>Initialize Physical Metric</strong> once with the complete <code>ρ</code>, <code>a</code>, and <code>T</code>
+   shape;</li>
+<li>use <strong>Set Uniform Physical Metric Scale</strong> for a ratio-preserving physical
+   resize; or</li>
+<li>use <strong>Set Portal Visual Scale</strong> for inexpensive render-only animation.</li>
+</ol>
+<p>A later <strong>Initialize Physical Metric</strong> call is accepted only if it preserves
+the original <code>a/ρ</code> and <code>T/ρ</code> ratios. <strong>Set Metric Parameters</strong> is a deprecated
+alias and should not be used in new work.</p>
+<h2 id="transit-does-not-start">Transit does not start</h2>
+<p>Open <strong>Tools &gt; Wormhole Portal &gt; Transit Manager</strong> and inspect the exact Actor
+status.</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>What to check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Not Supported</code></td>
+<td>The Actor does not match Character, Projectile, Pawn, or Physics requirements.</td>
+</tr>
+<tr>
+<td><code>Needs Setup: Transit is disabled</code></td>
+<td>Enable <strong>Transit Enabled</strong> on its <code>WPTransitComponent</code>.</td>
+</tr>
+<tr>
+<td><code>Needs Setup: Transit settings are invalid</code></td>
+<td>Review the selected Transit Type and reported components.</td>
+</tr>
+<tr>
+<td><code>Needs Setup: No movable collision Primitive was found</code></td>
+<td>Add an actor-owned, Movable, collision-enabled Primitive that can overlap the portal trigger.</td>
+</tr>
+<tr>
+<td><code>Needs Setup: No supported Primitive is simulating Physics.</code></td>
+<td>For Physics transit, enable Physics collision and simulation on a supported non-instanced Static Mesh or Shape Component.</td>
+</tr>
+<tr>
+<td><code>Needs Setup: Bake Voxel Body for a supported Primitive</code></td>
+<td>Enable voxel collision and bake data for the indicated supported Primitive.</td>
+</tr>
+<tr>
+<td><code>Needs Setup: Bake Voxel Body for &lt;asset/component names&gt;</code></td>
+<td>Bake or repair voxel data for every name reported by Transit Manager.</td>
+</tr>
+</tbody>
+</table>
+<p>Runtime rejection details are Verbose and compiled only in non-Shipping builds.
+Before reproducing, enter <code>Log LogWormhole Verbose</code> in the console or launch
+with <code>-LogCmds="LogWormhole Verbose"</code>.</p>
+<div class="highlight"><pre><code>[Transit][Rejected] TimestampSeconds=... RuntimeReason=EWPTransitFailReason::... ResolveReason=EWPTransitResolveFailReason::... FailedComponents=... Actor=... SourcePortal=... DestinationPortal=... TransitType=EWPTransitType::...
+</code></pre></div>
+<ul>
+<li><code>RuntimeReason</code> identifies the transit lifecycle failure.</li>
+<li><code>ResolveReason</code> identifies the setup resolver failure.</li>
+<li><code>FailedComponents</code> names the components implicated by resolution.</li>
+</ul>
+<p><code>DoesNotFitGate</code> means the Actor's projected cross-section perpendicular to its
+movement does not fit the source portal gate/core radius. Increase <strong>Portal
+Radius</strong> or correct/reduce the Actor collision bounds; never scale the Portal
+Actor.</p>
+<p>Possible runtime reasons are listed in full in
+<a href="../reference.html#transit-component">Reference</a>. With World Partition,
+<code>NotReady</code> can mean the linked area has not finished streaming. Keep the Actor
+outside the boundary until <code>IsLinkedPortalAreaReady()</code> returns <code>true</code>.</p>
+<h2 id="voxel-body-baking-fails">Voxel Body baking fails</h2>
+<p>Verify that:</p>
+<ol>
+<li><strong>Use Voxel Collision</strong> is enabled on <code>WPTransitComponent</code>.</li>
+<li>Each participating Primitive is actor-owned and non-instanced.</li>
+<li>A Static Mesh is saved and has usable Simple Collision, or the component is
+   a supported Box, Sphere, or Capsule Component.</li>
+<li>Static Mesh Simple Collision uses Sphere, Box, Capsule, or Convex elements.</li>
+<li><strong>Voxel Size</strong> is greater than zero.</li>
+<li><strong>Max Voxel Count</strong> is <code>1–512</code> and is sufficient for each Primitive.</li>
+</ol>
+<p><strong>Max Voxel Count</strong> applies per baked Primitive, not once per Static Mesh or
+Actor. Tapered capsules, level sets, skinned triangle collision, instanced
+meshes, and other unsupported collision types cannot be baked.</p>
+<p>The default generated Voxel directory is
+<code>/WormholePortal/WormholePortal/Generated/Voxels</code>. A custom Voxel directory
+must be a valid Long Package Directory under the case-sensitive
+<code>/WormholePortal/</code> prefix.</p>
+<h2 id="dynamic-cubemap-resolution-is-unexpected">Dynamic cubemap resolution is unexpected</h2>
+<p>Project configuration can override the plugin defaults. Inspect <strong>Lowest
+Visible Resolution</strong>, every <strong>Resolution Tier</strong>, and <strong>Inside SafeProxy
+Resolution</strong> under the plugin's Scene Capture settings.</p>
+<p>At runtime, tier thresholds clamp to <code>0–100%</code> and are stable-sorted. Resolutions
+round up to an 8-pixel multiple in <code>8–2048</code>, tiers cannot decrease below the
+previous effective tier, and inside resolution cannot fall below the lowest
+resolution. An empty tier list uses the lowest value outside the safe proxy.</p>
+<p>There is no plugin-local memory-budget downgrade. Use <code>stat WormholePortal</code> to
+observe cubemap memory; edit the resolution policy to reduce it.</p>
+<h2 id="material-clipping-does-not-work">Material clipping does not work</h2>
+<p>Material clipping is optional and does not modify arbitrary materials.</p>
+<p>Check that <strong>Use Material Clip</strong> is enabled, the material uses the supplied
+transit clip Material Function, the material and Project Settings use the same
+<strong>Clip Base Index</strong>, and four consecutive Custom Primitive Data slots beginning
+at that index are free. The default index is <code>28</code>.</p>
+<h2 id="portal-audio-is-not-heard">Portal audio is not heard</h2>
+<p>Portal audio needs an eligible active 3D Audio Component. Check that:</p>
+<ul>
+<li>spatialization and spatialized attenuation are enabled;</li>
+<li>the sound is not a UI/2D sound or Source Bus asset;</li>
+<li>the component is registered, playing, and not configured for multiple
+  simultaneous instances;</li>
+<li>its attenuation range reaches the portal;</li>
+<li>the source is outside the portal sphere; and</li>
+<li>neither component nor owner has <code>WP.PortalAudio.Disabled</code>.</li>
+</ul>
+<p>Generated proxies are excluded from retransmission, so audio currently travels
+through one portal hop.</p>
+<h2 id="portal-lighting">Portal lighting is not visible</h2>
+<p>Only Point and Spot Lights are transmitted. Check that the source is enabled,
+affects the World, has nonzero intensity, reaches the entry aperture, is not
+inside the portal, and is not tagged <code>WP.PortalLight.Disabled</code>. Both endpoints
+must use unit scale and matching radii.</p>
+<p>For source shadows, also enable <strong>Enable Portal Source Shadows</strong>, <strong>Cast
+Shadows</strong>, and <strong>Cast Dynamic Shadows</strong>. Directional and Rect Lights,
+asymmetric radii, lights inside a portal, GI, reflections, volumetrics,
+translucent shadows, and colored shadows are not transmitted.</p>
+<h2 id="diagnostics-to-collect">Diagnostics to collect</h2>
+<p>Before requesting support, collect:</p>
+<ul>
+<li>Unreal Engine version and plugin version;</li>
+<li>target platform and whether the renderer is present;</li>
+<li>PIE, SIE, Standalone, packaged, or Movie Render Queue context;</li>
+<li>the smallest reproduction steps;</li>
+<li>Output Log entries filtered by <code>LogWormhole</code>;</li>
+<li>the full non-Shipping Verbose transit rejection line, when applicable;</li>
+<li>screenshots of the Portal Actor and relevant component/settings panels; and</li>
+<li><code>stat WormholePortal</code> output for rendering or capture problems.</li>
+</ul>
+<p>Use the submission checklist on the <a href="../support/index.html">Support page</a> so a report can
+be reproduced without a second round of basic questions.</p>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

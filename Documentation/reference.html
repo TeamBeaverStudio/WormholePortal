@@ -1,0 +1,1018 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Reference - Wormhole Portal</title>
+  <link rel="stylesheet" href="stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="reference.html">
+  <link rel="alternate" hreflang="ko" href="ko/reference.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="Language">
+        <a hreflang="en" lang="en" href="reference.html">English</a>
+        <a hreflang="ko" lang="ko" href="ko/reference.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="Documentation">
+        <p class="section-nav__title">Documentation</p>
+        <div class="section-nav__links">
+          <a href="index.html">Home</a>
+          <a href="getting_started/index.html">Getting Started</a>
+          <a href="features/index.html">Features</a>
+          <a href="demo/index.html">Demo</a>
+          <a href="reference.html" aria-current="page">Reference</a>
+          <a href="issues/index.html">Issues</a>
+          <a href="faq/index.html">FAQ</a>
+          <a href="support/index.html">Compatibility &amp; Support</a>
+        </div>
+      </nav>
+      <p class="offline-note">This documentation opens locally without a network connection.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="reference">Reference</h1>
+<p>This page summarizes the public authoring properties, Blueprint nodes, C++
+interfaces, settings, defaults, and diagnostics provided by Wormhole Portal.</p>
+<div class="admonition note">
+<p class="admonition-title">Defaults and project overrides</p>
+<p>Values on this page are plugin code defaults. Values serialized in a
+project's configuration or on an Actor override them for that project.</p>
+</div>
+<h2 id="portal-actor">Portal Actor</h2>
+<p><code>AWormholePortalActor</code> represents one endpoint. Setting <strong>Linked Portal</strong> on one
+Actor establishes the reciprocal link and copies that Actor's metric to both
+endpoints.</p>
+<p>Keep Portal Actor Transform Scale at <code>(1, 1, 1)</code>. Change the physical metric or
+render-only visual scale through the explicit APIs below.</p>
+<h3 id="authoring-properties">Authoring properties</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Code default</th>
+<th>Constraint and purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Linked Portal</strong></td>
+<td>None</td>
+<td>Destination endpoint. A portal cannot link to itself.</td>
+</tr>
+<tr>
+<td><strong>Portal Radius</strong> (<code>ρ</code>)</td>
+<td><code>50 cm</code></td>
+<td>Seam and traversal-gate radius; minimum <code>1 cm</code>. Constrained by the active LUT domain when <code>T &gt; 0</code>.</td>
+</tr>
+<tr>
+<td><strong>Throat Half Length</strong> (<code>a</code>)</td>
+<td><code>100 cm</code></td>
+<td>Distance from the seam to the mouth; minimum <code>0</code>.</td>
+</tr>
+<tr>
+<td><strong>Transition Length</strong> (<code>T</code>)</td>
+<td><code>200 cm</code></td>
+<td>Distance from the mouth to flat space; minimum <code>0</code>. <code>0</code> uses the analytic no-transition path.</td>
+</tr>
+<tr>
+<td><strong>LUT Asset Override</strong></td>
+<td>None</td>
+<td>Optional per-instance replacement for the project LUT catalog.</td>
+</tr>
+<tr>
+<td><strong>Streaming Preload Distance</strong></td>
+<td><code>15,000 cm</code></td>
+<td>Starts destination loading in World Partition.</td>
+</tr>
+<tr>
+<td><strong>Streaming Release Distance</strong></td>
+<td><code>20,000 cm</code></td>
+<td>Keeps the request active; clamped to at least the preload distance.</td>
+</tr>
+<tr>
+<td><strong>Streaming Query Interval</strong></td>
+<td><code>0.2 s</code></td>
+<td>Proximity reevaluation interval; minimum <code>0.01 s</code>.</td>
+</tr>
+<tr>
+<td><strong>Draw Portal Debug</strong></td>
+<td>On in Editor</td>
+<td>Draws seam, mouth, and transition boundaries. Forced off when PIE begins.</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><code>Mouth Radius      = Portal Radius + Throat Half Length
+Transition Radius = Mouth Radius + Transition Length
+LUT ratio         = Transition Length / Portal Radius
+</code></pre></div>
+<h3 id="link-and-query-blueprint-api">Link and query Blueprint API</h3>
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>Kind</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Set Linked Portal</code></td>
+<td>Callable</td>
+<td>Creates or replaces the reciprocal link and synchronizes the metric.</td>
+</tr>
+<tr>
+<td><code>Clear Linked Portal</code></td>
+<td>Callable</td>
+<td>Removes the reciprocal link.</td>
+</tr>
+<tr>
+<td><code>Get Linked Portal</code> / <code>Has Linked Portal</code></td>
+<td>Pure</td>
+<td>Reads link state.</td>
+</tr>
+<tr>
+<td><code>Is Linked Portal Area Ready</code></td>
+<td>Pure</td>
+<td>Always <code>true</code> in a regular level; reports destination streaming readiness in World Partition.</td>
+</tr>
+<tr>
+<td>Metric getters</td>
+<td>Pure</td>
+<td><code>Get Portal Radius</code>, <code>Get Mouth Radius</code>, <code>Get Throat Half Length</code>, <code>Get Transition Length</code>, and <code>Get Transition Radius</code>.</td>
+</tr>
+<tr>
+<td><code>Get Portal Cube Render Target</code></td>
+<td>Pure</td>
+<td>Returns a borrowed runtime render target. Do not resize, initialize, update, or release it.</td>
+</tr>
+<tr>
+<td><code>Get LUT Texture</code> / <code>Get LUT Z</code></td>
+<td>Pure</td>
+<td>Reads the active volume LUT and the endpoint's logical slice.</td>
+</tr>
+<tr>
+<td><code>Transform Ray Through Portal</code></td>
+<td>Callable</td>
+<td>Maps an entry point and inward-traveling direction to the linked endpoint. It does not perform a trace. Default exit offset: <code>2 cm</code>.</td>
+</tr>
+<tr>
+<td><code>Set Draw Portal Debug</code> / <code>Is Portal Debug Enabled</code></td>
+<td>Callable / Pure</td>
+<td>Controls Editor boundary visualization.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="physical-metric-and-visual-scale">Physical metric and visual scale</h3>
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>Runtime contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Set Portal Radius</code></td>
+<td>Authoring/pre-BeginPlay setter. Independent calls after BeginPlay are rejected.</td>
+</tr>
+<tr>
+<td><code>Set Throat Half Length</code></td>
+<td>Authoring/pre-BeginPlay setter. Independent calls after BeginPlay are rejected.</td>
+</tr>
+<tr>
+<td><code>Set Transition Length</code></td>
+<td>Authoring/pre-BeginPlay setter. Independent calls after BeginPlay are rejected.</td>
+</tr>
+<tr>
+<td><code>Initialize Physical Metric</code></td>
+<td>Atomically establishes <code>ρ</code>, <code>a</code>, and <code>T</code>. The first successful runtime call captures the base shape and ratios <code>a/ρ</code> and <code>T/ρ</code>. Later calls are accepted only when those ratios are preserved.</td>
+</tr>
+<tr>
+<td><code>Set Uniform Physical Metric Scale</code></td>
+<td>Uniformly scales the initialized physical shape. Updates collision, bounds, visibility queries, LUT/capture state, and dynamic capture resolution; use sparingly.</td>
+</tr>
+<tr>
+<td><code>Get Uniform Physical Metric Scale</code></td>
+<td>Returns physical scale relative to the initialized shape.</td>
+</tr>
+<tr>
+<td><code>Set Portal Visual Scale</code></td>
+<td>Render-only scale intended for per-frame growth. Collision, metric, bounds, LUT identity, ownership/warmup, capture cadence, and dynamic resolution remain unchanged.</td>
+</tr>
+<tr>
+<td><code>Get Portal Visual Scale</code></td>
+<td>Returns the render-only compositor scale.</td>
+</tr>
+<tr>
+<td><code>Set Metric Parameters</code></td>
+<td>Deprecated compatibility alias of <code>Initialize Physical Metric</code>. Do not use it in new code or Blueprints.</td>
+</tr>
+</tbody>
+</table>
+<p>Call <strong>Initialize Physical Metric</strong> once before runtime animation. Use physical
+scale only when gameplay geometry must grow; otherwise animate visual scale.</p>
+<h2 id="transit-component">Transit Component</h2>
+<p>Add <code>UWPTransitComponent</code> to an Actor to opt it into portal traversal.</p>
+<h3 id="properties">Properties</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Transit Enabled</strong></td>
+<td>On</td>
+<td>Allows a portal overlap to start transit.</td>
+</tr>
+<tr>
+<td><strong>Transit Type</strong></td>
+<td><code>Auto</code></td>
+<td>Selects a concrete handler or automatic resolution.</td>
+</tr>
+<tr>
+<td><strong>Ignore Time</strong></td>
+<td><code>0.15 s</code></td>
+<td>Reentry lockout after a successful commit.</td>
+</tr>
+<tr>
+<td><strong>Draw Debug</strong></td>
+<td>Off</td>
+<td>Draws active transit geometry.</td>
+</tr>
+<tr>
+<td><strong>Use Voxel Collision</strong></td>
+<td>Off</td>
+<td>Uses baked voxel collision while Master and Twin coexist.</td>
+</tr>
+<tr>
+<td><strong>Use Material Clip</strong></td>
+<td>Off</td>
+<td>Drives compatible materials through Custom Primitive Data.</td>
+</tr>
+<tr>
+<td><strong>Voxel Size</strong></td>
+<td><code>20 cm</code></td>
+<td>Requested voxel edge length for the Editor bake.</td>
+</tr>
+<tr>
+<td><strong>Max Voxel Count</strong></td>
+<td><code>256</code></td>
+<td>Maximum boxes for each baked Primitive; range <code>1–512</code>.</td>
+</tr>
+<tr>
+<td><strong>Center Mode</strong></td>
+<td><code>Root Component Location</code></td>
+<td>Reference used to select the entry tangent plane. Other option: <code>Actor OBB Center</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><code>Auto</code> resolves in this order: Character, Projectile, Pawn, then Physics. A
+concrete type validates only that handler and does not fall back.</p>
+<p>Transit Primitives must be owned by the participating Actor, Movable, and
+collision-enabled. Physics transit needs at least one supported simulated body
+with Physics collision: a non-instanced Static Mesh Component with a valid mesh,
+or a supported Shape Component. Instanced Static Mesh Components are not
+supported.</p>
+<h3 id="delegates">Delegates</h3>
+<table>
+<thead>
+<tr>
+<th>Delegate</th>
+<th>When it fires</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>On Phase Changed</code></td>
+<td>The owner's transit phase changes.</td>
+</tr>
+<tr>
+<td><code>On Twin Preparing</code></td>
+<td>Template duplication is complete, immediately before the Twin Construction Script. Only synchronous work is safe; do not use latent actions such as <code>Delay</code>.</td>
+</tr>
+<tr>
+<td><code>On Twin Created</code></td>
+<td>Twin creation and run preparation are complete.</td>
+</tr>
+<tr>
+<td><code>On Twin Removing</code></td>
+<td>Immediately before the Twin is removed.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="blueprint-api">Blueprint API</h3>
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Get Phase</code></td>
+<td>Returns <code>Idle</code>, <code>Check</code>, <code>Crossing</code>, or <code>Cooldown</code>.</td>
+</tr>
+<tr>
+<td><code>Get Transit Role</code></td>
+<td>Returns <code>None</code>, <code>Master</code>, or <code>Twin</code>.</td>
+</tr>
+<tr>
+<td><code>Get Counter Part Actor</code></td>
+<td>Returns the opposite Actor in the active relationship.</td>
+</tr>
+<tr>
+<td><code>Get Master Actor</code> / <code>Get Twin Actor</code></td>
+<td>Returns a specific side of the relationship.</td>
+</tr>
+<tr>
+<td><code>Get Source Portal</code> / <code>Get Dest Portal</code></td>
+<td>Returns the entry and destination endpoints.</td>
+</tr>
+<tr>
+<td><code>Get Transit Type</code></td>
+<td>Returns the concrete type after <code>Auto</code> resolution.</td>
+</tr>
+<tr>
+<td><code>Get Transit Sequence</code></td>
+<td>Returns the World-local identifier for the current transit.</td>
+</tr>
+<tr>
+<td><code>Cancel Transit</code></td>
+<td>Cancels active transit in an authoritative World.</td>
+</tr>
+<tr>
+<td><code>Get Entry Data</code> / <code>Get Exit Data</code></td>
+<td>Returns the surface point and outward normal.</td>
+</tr>
+<tr>
+<td><code>Map Point</code>, <code>Map Direction</code>, <code>Map Rotation</code>, <code>Map Transform</code></td>
+<td>Maps values through the current transit. Returns <code>false</code> without a valid mapping.</td>
+</tr>
+<tr>
+<td><code>Is Point Inside Portal</code></td>
+<td>Tests the active entry tangent plane.</td>
+</tr>
+<tr>
+<td><code>Refresh From Owner</code></td>
+<td>Re-resolves the handler and component caches. Allowed only while <code>Idle</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="transit-enums">Transit enums</h3>
+<table>
+<thead>
+<tr>
+<th>Enum</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EWPTransitType</code></td>
+<td><code>Auto</code>, <code>Physics</code>, <code>Character</code>, <code>Projectile</code>, <code>Pawn</code></td>
+</tr>
+<tr>
+<td><code>EWPTransitPhase</code></td>
+<td><code>Idle</code>, <code>Check</code>, <code>Crossing</code>, <code>Cooldown</code></td>
+</tr>
+<tr>
+<td><code>EWPTransitRole</code></td>
+<td><code>None</code>, <code>Master</code>, <code>Twin</code></td>
+</tr>
+<tr>
+<td><code>EWPTransitResult</code></td>
+<td><code>None</code>, <code>Rejected</code>, <code>Committed</code>, <code>Cancelled</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>EWPTransitFailReason</code> describes a runtime lifecycle result:</p>
+<div class="highlight"><pre><code>None, NotReady, PortalUnavailable, AlreadyInTransit, CooldownActive,
+DoesNotFitGate, TwinCreationFailed, PortalDestroyed, InternalError,
+UnsupportedActor, InvalidSetup, TransitDisabled, MissingPrimitives,
+MissingPhysicsMesh, MissingVoxelData, InvalidVelocity, InvalidCenter,
+InvalidPlane, BeginFailed, VoxelBeginFailed, UpdateFailed, RuntimeStateLost,
+MappingInvalid, InvalidRunState, ReturnedToSource, CommitFailed,
+CancelRequested, SubsystemClosed
+</code></pre></div>
+<p><code>EWPTransitResolveFailReason</code> describes the detailed Actor-setup resolver result:</p>
+<div class="highlight"><pre><code>None, UnsupportedActor, TransitDisabled, MissingPrimitives, NoPhysicsBody,
+MissingVoxelData, TypeMismatch, MissingMovement, InvalidMoveOwner,
+InvalidUpdatedPart, InvalidRootPart, InvalidPartOwner, PartNotMovable,
+PartNoCollision, UnsupportedPart, ExcludedPart, SimPhysics, InvalidMoveType,
+NoOverlapPart
+</code></pre></div>
+<p><code>DoesNotFitGate</code> means the Actor's projected traversal cross-section,
+perpendicular to its movement, does not fit the source portal gate/core radius.</p>
+<h2 id="portal-aware-line-traces">Portal-aware line traces</h2>
+<p>Do not pass the configured <code>WPPortalTrace</code> channel as the scene trace channel.
+The library uses it internally to detect portals.</p>
+<table>
+<thead>
+<tr>
+<th>Blueprint node</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Portal Line Trace By Channel</code></td>
+<td>Final blocking <code>Hit Result</code> and termination status.</td>
+</tr>
+<tr>
+<td><code>Portal Line Trace Detailed By Channel</code></td>
+<td><code>FWPPortalTraceResult</code> with logical distance and portal events.</td>
+</tr>
+<tr>
+<td><code>Portal Line Trace Multi By Channel</code></td>
+<td>Overlap hits plus the first blocking hit in logical path order.</td>
+</tr>
+<tr>
+<td><code>Portal Line Trace Multi Detailed By Channel</code></td>
+<td>Detailed scene hits and portal events across all segments.</td>
+</tr>
+</tbody>
+</table>
+<p>Common defaults are <code>Ignore Self = true</code>, <code>Max Portal Depth = 4</code>, <code>Portal Exit
+Offset = 2 cm</code>, <code>Draw Time = 5 s</code>, red trace color, and green hit color.</p>
+<p><code>FHitResult.Distance</code> restarts on each post-portal segment. Use
+<code>FWPPortalTraceHit.LogicalDistance</code> for distance from the original start.
+Logical distance excludes travel inside a portal and the Portal Exit Offset.</p>
+<div class="admonition warning">
+<p class="admonition-title">Portal Exit Offset behavior</p>
+<p>The offset prevents an immediate self-hit. It does not consume remaining
+trace distance, and the gap between the exit surface and offset trace start
+is not collision-tested.</p>
+</div>
+<h3 id="trace-result-types">Trace result types</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Important fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FWPPortalTraceResult</code></td>
+<td><code>Status</code>, <code>bBlockingHit</code>, <code>RequestedDistance</code>, <code>ProcessedDistance</code>, <code>PortalTraversalCount</code>, <code>SceneHits</code>, <code>PortalEvents</code></td>
+</tr>
+<tr>
+<td><code>FWPPortalTraceHit</code></td>
+<td><code>Hit</code>, <code>LogicalDistance</code>, <code>SegmentIndex</code></td>
+</tr>
+<tr>
+<td><code>FWPPortalTracePortalEvent</code></td>
+<td><code>DetectionHit</code>, <code>EntryPortal</code>, <code>ExitPortal</code>, <code>EntryDirection</code>, <code>ExitTraceStart</code>, <code>ExitDirection</code>, <code>LogicalDistance</code>, <code>PortalDepth</code>, <code>Outcome</code></td>
+</tr>
+<tr>
+<td><code>EWPPortalTraceStatus</code></td>
+<td><code>Completed</code>, <code>InvalidInput</code>, <code>MaxPortalDepthReached</code>, <code>PortalTransformFailed</code></td>
+</tr>
+<tr>
+<td><code>EWPPortalTracePortalOutcome</code></td>
+<td><code>Traversed</code>, <code>MaxDepthReached</code>, <code>TransformFailed</code></td>
+</tr>
+</tbody>
+</table>
+<p>C++ additionally exposes <code>PortalLineTraceTestByChannel</code>,
+<code>PortalLineTraceSingleByChannel</code>, and <code>PortalLineTraceMultiByChannel</code>.</p>
+<h2 id="project-settings">Project Settings</h2>
+<p>Open <strong>Edit &gt; Project Settings &gt; Plugins &gt; Wormhole Portal</strong>. These values are
+stored in <code>DefaultEngine.ini</code>.</p>
+<h3 id="trace-and-transit">Trace and transit</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Plugin default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Portal Trace Channel</strong></td>
+<td><code>ECC_GameTraceChannel1</code></td>
+</tr>
+<tr>
+<td><strong>Portal Trace Channel Name</strong></td>
+<td><code>WPPortalTrace</code></td>
+</tr>
+<tr>
+<td><strong>Plane Tie Angle</strong></td>
+<td><code>1°</code></td>
+</tr>
+<tr>
+<td><strong>Plane Priority</strong></td>
+<td><code>YZ &gt; XZ &gt; XY</code></td>
+</tr>
+<tr>
+<td><strong>Clip Base Index</strong></td>
+<td><code>28</code></td>
+</tr>
+<tr>
+<td><strong>Generated Voxel Asset Path</strong></td>
+<td><code>/WormholePortal/WormholePortal/Generated/Voxels</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Clip Base Index</strong> reserves four consecutive Custom Primitive Data values and
+must match the material using <code>MF_WPTransitClip</code>.</p>
+<p>The Voxel path is under Plugin Content by default. A custom Voxel path must be
+a valid Long Package Directory under the case-sensitive <code>/WormholePortal/</code>
+prefix.</p>
+<h3 id="dynamic-cubemap-resolution">Dynamic cubemap resolution</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Plugin code default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Lowest Visible Resolution</strong></td>
+<td><code>64</code></td>
+</tr>
+<tr>
+<td><strong>Resolution Tier 1</strong></td>
+<td><code>30%</code> / <code>128</code></td>
+</tr>
+<tr>
+<td><strong>Resolution Tier 2</strong></td>
+<td><code>60%</code> / <code>256</code></td>
+</tr>
+<tr>
+<td><strong>Resolution Tier 3</strong></td>
+<td><code>100%</code> / <code>512</code></td>
+</tr>
+<tr>
+<td><strong>Inside SafeProxy Resolution</strong></td>
+<td><code>768</code></td>
+</tr>
+</tbody>
+</table>
+<p>The tier array is editable: add, remove, or reorder entries in Project Settings.
+At runtime, thresholds are clamped to <code>0–100%</code> and stable-sorted in ascending
+order. Positive resolutions round <strong>up</strong> to the next multiple of 8 in the
+<code>8–2048</code> range. Tier resolutions are forced to be nondecreasing from <strong>Lowest
+Visible Resolution</strong>, and the inside resolution is at least that lowest value.
+An empty tier list uses the lowest resolution outside the safe proxy.</p>
+<p>There is no plugin-local VRAM-budget resolution downgrade. Cubemap memory is
+reported for diagnosis, but the effective policy comes from these settings.</p>
+<h3 id="scene-capture-show-flags">Scene-capture show flags</h3>
+<p>The plugin code default is On for:</p>
+<ul>
+<li>Lumen Reflections;</li>
+<li>Screen Space Ambient Occlusion;</li>
+<li>Volumetric Cloud Bundle;</li>
+<li>Dynamic Shadows Bundle;</li>
+<li>Sky Lighting Bundle;</li>
+<li>Sky Atmosphere Bundle;</li>
+<li>Deferred Lighting Bundle;</li>
+<li>Lighting Master Bundle;</li>
+<li>Fog Master Bundle; and</li>
+<li>Volumetric Fog.</li>
+</ul>
+<p>These switches affect managed cube captures only. <strong>Lighting Master Bundle</strong>
+and <strong>Fog Master Bundle</strong> are parent switches for dependent options.</p>
+<h3 id="portal-audio">Portal audio</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Plugin default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Enable Portal Audio</strong></td>
+<td>On</td>
+</tr>
+<tr>
+<td><strong>Transmission Gain</strong></td>
+<td><code>1.0</code></td>
+</tr>
+<tr>
+<td><strong>Enable Occlusion</strong></td>
+<td>On</td>
+</tr>
+<tr>
+<td><strong>Occlusion Channel</strong></td>
+<td><code>Visibility</code></td>
+</tr>
+<tr>
+<td><strong>Occlusion Check Interval</strong></td>
+<td><code>0.1 s</code></td>
+</tr>
+<tr>
+<td><strong>Occluded Volume Multiplier</strong></td>
+<td><code>0.35</code></td>
+</tr>
+<tr>
+<td><strong>Occlusion Low-pass Frequency</strong></td>
+<td><code>1200 Hz</code></td>
+</tr>
+<tr>
+<td><strong>Occlusion Surface Bias</strong></td>
+<td><code>2 cm</code></td>
+</tr>
+<tr>
+<td><strong>Source Reconcile Interval</strong></td>
+<td><code>0.25 s</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="portal-source-shadows">Portal source shadows</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Plugin default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Enable Portal Source Shadows</strong></td>
+<td>On</td>
+</tr>
+<tr>
+<td><strong>Base Resolution</strong></td>
+<td><code>256</code></td>
+</tr>
+<tr>
+<td><strong>Update Rate</strong></td>
+<td><code>30 Hz</code></td>
+</tr>
+<tr>
+<td><strong>Captures Per Frame</strong></td>
+<td><code>2</code></td>
+</tr>
+<tr>
+<td><strong>Active Routes</strong></td>
+<td><code>8</code></td>
+</tr>
+<tr>
+<td><strong>Depth Bias</strong></td>
+<td><code>1 cm</code></td>
+</tr>
+<tr>
+<td><strong>PCF Radius</strong></td>
+<td><code>1 texel</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="lut">LUT</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Plugin default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Generated LUT Asset Path</strong></td>
+<td><code>/WormholePortal/WormholePortal/Generated/LUT</code></td>
+</tr>
+<tr>
+<td><strong>Impact / Transition / Ratio Samples</strong></td>
+<td><code>512 / 48 / 24</code></td>
+</tr>
+<tr>
+<td><strong>Integration Steps</strong></td>
+<td><code>192</code></td>
+</tr>
+<tr>
+<td><strong>Transition Ratio Domain</strong></td>
+<td><code>0.5–8.0</code></td>
+</tr>
+<tr>
+<td><strong>Tail Flatten Start</strong></td>
+<td><code>0.5</code></td>
+</tr>
+<tr>
+<td><strong>Allow Runtime LUT Fallback</strong></td>
+<td>On</td>
+</tr>
+</tbody>
+</table>
+<p>The generated LUT directory must be a valid Unreal Long Package Directory with
+the case-sensitive prefix <code>/WormholePortal/</code>. Forward slashes and the trailing
+slash are normalized before validation. Project Content paths such as
+<code>/Game/...</code> are rejected.</p>
+<h2 id="tags">Tags</h2>
+<table>
+<thead>
+<tr>
+<th>Actor or Component tag</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Wormhole.Ignore</code></td>
+<td>Excludes an Actor or Primitive Component from transit resolution.</td>
+</tr>
+<tr>
+<td><code>WP.PortalAudio.Disabled</code></td>
+<td>Excludes an Audio Component or its owning Actor from portal audio.</td>
+</tr>
+<tr>
+<td><code>WP.PortalLight.Disabled</code></td>
+<td>Excludes a Light Component or its owning Actor from portal light collection.</td>
+</tr>
+</tbody>
+</table>
+<p><code>WP.PortalAudio.Generated</code>, <code>WP.PortalLight.Generated</code>, and
+<code>WormholeGeneratedTransit</code> are reserved for plugin-created objects and should
+not be assigned manually.</p>
+<h2 id="editor-tools">Editor tools</h2>
+<table>
+<thead>
+<tr>
+<th>Location</th>
+<th>Tool</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tools &gt; Wormhole Portal &gt; Transit Manager</strong></td>
+<td>Checks Actor compatibility, reports <code>Ready</code>, <code>Needs Setup</code>, or <code>Not Supported</code>, and can add transit to ready Actors.</td>
+</tr>
+<tr>
+<td><strong>Tools &gt; Wormhole Portal &gt; Bake All LUTs</strong></td>
+<td>Opens <strong>LUT Bake Settings</strong> and generates the shared Volume LUT and catalog.</td>
+</tr>
+<tr>
+<td>Transit Component Details</td>
+<td><strong>Bake Voxel Body</strong> generates data for each supported non-instanced Static Mesh or Box/Sphere/Capsule Primitive when <strong>Use Voxel Collision</strong> is enabled.</td>
+</tr>
+<tr>
+<td>Portal Actor Details</td>
+<td>Displays the active LUT domain and constrains metric controls to it.</td>
+</tr>
+<tr>
+<td>Startup notification</td>
+<td>Offers <strong>Add Automatically</strong> or <strong>Open Collision Settings</strong> when <code>WPPortalTrace</code> is missing or mismatched.</td>
+</tr>
+</tbody>
+</table>
+<p>LUT presets are:</p>
+<table>
+<thead>
+<tr>
+<th>Preset group</th>
+<th>Options</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Quality</strong></td>
+<td><code>Fast (256/24/12/64)</code>, <code>Balanced (512/48/24/192)</code>, <code>High (768/64/32/384)</code>, <code>Cinematic (1024/96/48/768)</code></td>
+</tr>
+<tr>
+<td><strong>Domain</strong></td>
+<td><code>Current Level Auto</code>, <code>Standard (0.5–8)</code>, <code>Wide (0.25–16)</code>, <code>Narrow (1–4)</code></td>
+</tr>
+</tbody>
+</table>
+<p>Quality numbers are Impact Samples, Transition Samples, Ratio Samples, and
+Integration Steps.</p>
+<h2 id="integration-examples">Integration examples</h2>
+<h3 id="blueprint-patterns">Blueprint patterns</h3>
+<p>For a runtime-created pair:</p>
+<ol>
+<li>Call <strong>Set Linked Portal</strong>.</li>
+<li>Call <strong>Initialize Physical Metric</strong> once with the full <code>ρ</code>, <code>a</code>, and <code>T</code>
+   shape.</li>
+<li>Drive <strong>Set Portal Visual Scale</strong> from a Timeline for a low-cost visual
+   opening effect.</li>
+<li>Use <strong>Set Uniform Physical Metric Scale</strong> only if collision and the physical
+   traversal gate must grow with the visual.</li>
+</ol>
+<p>For transit, add <code>WPTransitComponent</code> in the Blueprint Components panel, keep
+<strong>Transit Type: Auto</strong> and <strong>Transit Enabled</strong>, compile, then verify the Actor in
+Transit Manager. For a trace, connect <strong>Portal Line Trace Detailed By Channel</strong>
+to <strong>Break WPPortalTraceResult</strong> and inspect <code>Status</code>, <code>Scene Hits</code>, <code>Portal
+Events</code>, and logical distance.</p>
+<h3 id="c-module-dependency">C++ module dependency</h3>
+<p>Add the runtime module to your module's <code>.Build.cs</code> file:</p>
+<div class="highlight"><pre><code><span class="n">PublicDependencyModuleNames</span><span class="p">.</span><span class="n">AddRange</span><span class="p">(</span>
+<span class="k">new</span><span class="kt">string</span><span class="p">[]</span>
+<span class="p">{</span>
+<span class="s">&quot;WormholePortalRuntime&quot;</span>
+<span class="p">});</span>
+</code></pre></div>
+<h3 id="configure-and-animate-a-pair">Configure and animate a pair</h3>
+<div class="highlight"><pre><code><span class="cp">#include</span><span class="cpf">&quot;WormholePortalActor.h&quot;</span>
+
+<span class="kt">void</span><span class="nf">ConfigurePortalPair</span><span class="p">(</span>
+<span class="n">AWormholePortalActor</span><span class="o">*</span><span class="n">PortalA</span><span class="p">,</span>
+<span class="n">AWormholePortalActor</span><span class="o">*</span><span class="n">PortalB</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">IsValid</span><span class="p">(</span><span class="n">PortalA</span><span class="p">)</span><span class="o">||</span><span class="o">!</span><span class="n">IsValid</span><span class="p">(</span><span class="n">PortalB</span><span class="p">))</span>
+<span class="p">{</span>
+<span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">PortalA</span><span class="o">-&gt;</span><span class="n">SetLinkedPortal</span><span class="p">(</span><span class="n">PortalB</span><span class="p">);</span>
+<span class="n">PortalA</span><span class="o">-&gt;</span><span class="n">InitializePhysicalMetric</span><span class="p">(</span><span class="mf">75.0f</span><span class="p">,</span><span class="mf">150.0f</span><span class="p">,</span><span class="mf">300.0f</span><span class="p">);</span>
+
+<span class="c1">// Preferred for a per-frame opening effect: rendering only.</span>
+<span class="n">PortalA</span><span class="o">-&gt;</span><span class="n">SetPortalVisualScale</span><span class="p">(</span><span class="mf">0.5f</span><span class="p">);</span>
+
+<span class="c1">// Use instead when the physical gate and collision must resize.</span>
+<span class="c1">// PortalA-&gt;SetUniformPhysicalMetricScale(1.25f);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Run replicated gameplay mutations from the authoritative side. Do not call the
+three independent metric setters every Tick.</p>
+<h3 id="refresh-an-existing-transit-component">Refresh an existing Transit Component</h3>
+<div class="highlight"><pre><code><span class="cp">#include</span><span class="cpf">&quot;Transit/WPTransitComponent.h&quot;</span>
+
+<span class="k">if</span><span class="p">(</span><span class="n">UWPTransitComponent</span><span class="o">*</span><span class="n">Transit</span><span class="o">=</span>
+<span class="n">Actor</span><span class="o">-&gt;</span><span class="n">FindComponentByClass</span><span class="o">&lt;</span><span class="n">UWPTransitComponent</span><span class="o">&gt;</span><span class="p">())</span>
+<span class="p">{</span>
+<span class="n">Transit</span><span class="o">-&gt;</span><span class="n">SetTransitType</span><span class="p">(</span><span class="n">EWPTransitType</span><span class="o">::</span><span class="n">Auto</span><span class="p">);</span>
+<span class="n">Transit</span><span class="o">-&gt;</span><span class="n">SetTransitEnabled</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
+<span class="n">Transit</span><span class="o">-&gt;</span><span class="n">RefreshFromOwner</span><span class="p">();</span><span class="c1">// Only succeeds while Idle.</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="perform-a-portal-aware-trace">Perform a portal-aware trace</h3>
+<div class="highlight"><pre><code><span class="cp">#include</span><span class="cpf">&quot;Trace/WPTraceLibrary.h&quot;</span>
+
+<span class="n">FWPPortalTraceResult</span><span class="n">Result</span><span class="p">;</span>
+<span class="k">const</span><span class="kt">bool</span><span class="n">bBlockingHit</span><span class="o">=</span><span class="n">UWPTraceLibrary</span><span class="o">::</span><span class="n">PortalLineTraceSingleByChannel</span><span class="p">(</span>
+<span class="n">WorldContextObject</span><span class="p">,</span>
+<span class="n">Result</span><span class="p">,</span>
+<span class="n">Start</span><span class="p">,</span>
+<span class="n">End</span><span class="p">,</span>
+<span class="n">ECC_Visibility</span><span class="p">);</span>
+</code></pre></div>
+<p><code>ECC_Visibility</code> is the ordinary scene channel in this example. Never replace
+it with the plugin's configured <code>WPPortalTrace</code> channel.</p>
+<h2 id="native-subsystems">Native subsystems</h2>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Scope and public use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UWPRegistrySubsystem</code></td>
+<td>World-scoped portal and pair registry with native registration, change, and pair delegates.</td>
+</tr>
+<tr>
+<td><code>UWPTransitSubsystem</code></td>
+<td>Server-authoritative transit coordinator and native lifecycle delegates.</td>
+</tr>
+<tr>
+<td><code>UWPPortalStreamingSubsystem</code></td>
+<td>World Partition destination requests. Normal gameplay reads readiness from the Portal Actor.</td>
+</tr>
+<tr>
+<td><code>UWPPortalAudioSubsystem</code></td>
+<td>Opposite-side audio routes. Blueprint exposes tracked-source and proxy counts.</td>
+</tr>
+<tr>
+<td><code>UWPPortalLightCollectionSubsystem</code></td>
+<td>Collects supported Point, Spot, and Directional Lights for C++ snapshots.</td>
+</tr>
+<tr>
+<td><code>UWPPortalLightTransmissionSubsystem</code></td>
+<td>Generates Point/Spot proxy lights and source-shadow routes.</td>
+</tr>
+<tr>
+<td><code>UWPLUTCacheSubsystem</code></td>
+<td>Engine-scoped asynchronous baked/fallback LUT cache; completion returns on the Game Thread.</td>
+</tr>
+<tr>
+<td><code>IWPRenderer</code></td>
+<td>Advanced modular-feature boundary for pair registration and immutable render packets.</td>
+</tr>
+</tbody>
+</table>
+<p><code>FWPTransform</code> provides point, direction, rotation, inverse, exit, and complete
+Transform mapping.</p>
+<h2 id="diagnostics">Diagnostics</h2>
+<p>Run <code>stat WormholePortal</code> for CPU setup/submission timing, pair counts, cubemap
+memory and megapixels, capture submissions, LUT requests/cache hits/fallbacks,
+render packets, and composite workload. Use <code>stat gpu</code> or ProfileGPU for GPU
+execution cost.</p>
+<p>In a non-Shipping build, raise transit log verbosity before reproducing a
+rejection:</p>
+<div class="highlight"><pre><code>Log LogWormhole Verbose
+</code></pre></div>
+<p>The complete line has this shape:</p>
+<div class="highlight"><pre><code>[Transit][Rejected] TimestampSeconds=... RuntimeReason=EWPTransitFailReason::... ResolveReason=EWPTransitResolveFailReason::... FailedComponents=... Actor=... SourcePortal=... DestinationPortal=... TransitType=EWPTransitType::...
+</code></pre></div>
+<p><code>RuntimeReason</code> is the lifecycle failure. <code>ResolveReason</code> is the detailed setup
+resolver result, and <code>FailedComponents</code> identifies implicated components. This
+Verbose rejection line is compiled out of Shipping builds.</p>
+<h3 id="common-rendering-cvars">Common rendering CVars</h3>
+<table>
+<thead>
+<tr>
+<th>CVar</th>
+<th>Code default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wp.RuntimeEnabled</code></td>
+<td><code>1</code></td>
+<td>Production render-packet pipeline master switch.</td>
+</tr>
+<tr>
+<td><code>wp.SceneViewExtensionEnabled</code></td>
+<td><code>1</code></td>
+<td>Warmup and production compositing master switch.</td>
+</tr>
+<tr>
+<td><code>wp.SimulateViewEnabled</code></td>
+<td><code>1</code></td>
+<td>Enables the SIE viewport production pass.</td>
+</tr>
+<tr>
+<td><code>wp.CaptureSchedulerMode</code></td>
+<td><code>2</code></td>
+<td><code>1</code>: atomic pair; <code>2</code>: staggered endpoints. <code>0</code> is a deprecated alias of <code>1</code>.</td>
+</tr>
+<tr>
+<td><code>wp.CaptureTargetEndpointHz</code></td>
+<td><code>30</code></td>
+<td>Visible-endpoint update rate; runtime range <code>5–120 Hz</code>.</td>
+</tr>
+<tr>
+<td><code>wp.CaptureVisibilityInvisibleHoldSeconds</code></td>
+<td><code>0.5</code></td>
+<td>Both-invisible time before captures pause.</td>
+</tr>
+<tr>
+<td><code>wp.CaptureOcclusionTraceIntervalSeconds</code></td>
+<td><code>0.1</code></td>
+<td>CPU safe-proxy occlusion-test interval.</td>
+</tr>
+<tr>
+<td><code>wp.CaptureResolutionUpgradeHoldSeconds</code></td>
+<td><code>0.75</code></td>
+<td>Delay before increasing resolution.</td>
+</tr>
+<tr>
+<td><code>wp.CaptureResolutionDowngradeHoldSeconds</code></td>
+<td><code>0.15</code></td>
+<td>Delay before decreasing resolution.</td>
+</tr>
+<tr>
+<td><code>wp.CaptureResolutionMinimumDwellSeconds</code></td>
+<td><code>0.5</code></td>
+<td>Minimum interval between completed resolution transitions.</td>
+</tr>
+<tr>
+<td><code>wp.CaptureMaxViewDistanceCm</code></td>
+<td><code>-1</code></td>
+<td>Positive values enable capture distance culling; <code>&lt;=0</code> is unlimited.</td>
+</tr>
+<tr>
+<td><code>wp.CaptureLODDistanceFactor</code></td>
+<td><code>1</code></td>
+<td>Capture LOD multiplier; range <code>1–10</code>.</td>
+</tr>
+<tr>
+<td><code>wp.CubeLumenParityMode</code></td>
+<td><code>0</code></td>
+<td><code>0</code>: no Lumen, <code>1</code>: GI, <code>2</code>: GI and reflections.</td>
+</tr>
+<tr>
+<td><code>wp.ViewSummaryInterval</code></td>
+<td><code>5</code></td>
+<td>Aggregate rendering log interval in seconds.</td>
+</tr>
+</tbody>
+</table>
+<p>Use CVars for profiling and controlled overrides. Keep Project Settings as the
+normal authoring surface.</p>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>홈 - Wormhole Portal</title>
+  <link rel="stylesheet" href="stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="../index.html">
+  <link rel="alternate" hreflang="ko" href="index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">본문으로 건너뛰기</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="언어">
+        <a hreflang="en" lang="en" href="../index.html">English</a>
+        <a hreflang="ko" lang="ko" href="index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="문서 목차">
+        <p class="section-nav__title">문서 목차</p>
+        <div class="section-nav__links">
+          <a href="index.html" aria-current="page">홈</a>
+          <a href="getting_started/index.html">시작하기</a>
+          <a href="features/index.html">기능</a>
+          <a href="demo/index.html">데모</a>
+          <a href="reference.html">레퍼런스</a>
+          <a href="issues/index.html">문제 해결</a>
+          <a href="faq/index.html">FAQ</a>
+          <a href="support/index.html">호환성 및 지원</a>
+        </div>
+      </nav>
+      <p class="offline-note">이 문서는 네트워크 연결 없이 로컬 파일로 열립니다.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<div class="wp-introduction" id="introduction">
+<p><span class="wp-introduction__eyebrow">WORMHOLE PORTAL 1.0</span></p>
+<h2 id="_1">연결된 공간, 하나로 이어지는 세계.</h2>
+<p>Wormhole Portal은 서로 연결된 공간을 같은 세계의 일부처럼 보이고
+작동하도록 구성하는 Unreal Engine 5.8 플러그인입니다. 물리 법칙에서
+영감을 받은 렌더링 경로는 설정 가능한 목과 전이장을 통과하는 시야를
+휘어, 평평한 창과는 다른 입체적인 목적지 화면을 만듭니다.</p>
+<p>포털 인식 시스템은 렌더링을 넘어 연결을 유지하며, 경계를 가로지르는
+이동, 공간 쿼리, 월드 스트리밍, 공간 오디오 및 Point/Spot Light 전달을
+지원합니다.</p>
+</div>
+<h2 id="_2">여기서 시작하세요</h2>
+<ul>
+<li><a href="getting_started/index.html">시작하기</a>에서 5~10분 안에 연결되고 통과 가능한 포털
+  쌍을 만듭니다.</li>
+<li><a href="demo/index.html">데모</a>에서 포함된 샘플 맵을 열고 주요 예제를 확인합니다.</li>
+<li><a href="features/index.html">기능</a>에서 렌더링과 게임플레이 시스템을 살펴봅니다.</li>
+<li><a href="reference.html">레퍼런스</a>에서 속성, Blueprint 노드, C++ 진입점, 설정,
+  기본값과 진단 명령을 찾습니다.</li>
+<li><a href="issues/index.html">문제 해결</a>에서 현재 제한사항과 해결 절차를 확인합니다.</li>
+<li><a href="faq/index.html">자주 묻는 질문</a>에서 제작 단계의 일반적인 질문에 답합니다.</li>
+<li><a href="support/index.html">호환성, 릴리스 및 지원</a>에서 지원 환경, 릴리스 정보와 문의
+  방법을 확인합니다.</li>
+</ul>
+<h2 id="_3">호환성 요약</h2>
+<p>버전 1.0의 공식 테스트·지원 환경은 <strong>Unreal Engine 5.8, Win64, DX12,
+SM6</strong>입니다. 포털 합성은 하나의 Primary Perspective Non-stereo Game
+View를 대상으로 하며, Renderer 모듈은 Server Target에서 제외됩니다.
+Linux, macOS, DX11, 모바일, 콘솔 및 Dedicated Server는 현재 지원 대상으로
+선언하지 않습니다. 게시자는 <strong>Team Beaver Studio</strong>이며 공식 지원 연락처는
+<a href="mailto:beavergametech@gmail.com">beavergametech@gmail.com</a>입니다. 자세한
+범위는 <a href="support/index.html">호환성 및 지원</a>을 확인하세요.</p>
+<div class="admonition tip">
+<p class="admonition-title">포함된 맵으로 평가하기</p>
+<p>Content Browser에서 <strong>Show Plugin Content</strong>를 켜고
+<code>WormholePortal Content/WormholePortal/Demo/Lv_WormholePortal_Content_Demo</code>를 연 뒤
+Play In Editor를 실행하세요. <a href="demo/index.html">데모 가이드</a>에서 확인할 예제와
+샘플 재사용 시 주의할 점을 안내합니다.</p>
+</div>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

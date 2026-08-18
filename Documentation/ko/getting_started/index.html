@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>시작하기 - Wormhole Portal</title>
+  <link rel="stylesheet" href="../stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="../../getting_started/index.html">
+  <link rel="alternate" hreflang="ko" href="index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">본문으로 건너뛰기</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="../index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="언어">
+        <a hreflang="en" lang="en" href="../../getting_started/index.html">English</a>
+        <a hreflang="ko" lang="ko" href="index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="문서 목차">
+        <p class="section-nav__title">문서 목차</p>
+        <div class="section-nav__links">
+          <a href="../index.html">홈</a>
+          <a href="index.html" aria-current="page">시작하기</a>
+          <a href="../features/index.html">기능</a>
+          <a href="../demo/index.html">데모</a>
+          <a href="../reference.html">레퍼런스</a>
+          <a href="../issues/index.html">문제 해결</a>
+          <a href="../faq/index.html">FAQ</a>
+          <a href="../support/index.html">호환성 및 지원</a>
+        </div>
+      </nav>
+      <p class="offline-note">이 문서는 네트워크 연결 없이 로컬 파일로 열립니다.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="_1">시작하기</h1>
+<p>5~10분 안에 첫 Wormhole Portal 쌍을 만들고 통과해 보세요. 이 과정을
+마치면 포털을 통해 목적지 공간을 확인하고, 플레이어 캐릭터를 포털
+너머로 이동시킬 수 있습니다.</p>
+<h2 id="_2">만들 내용</h2>
+<ul>
+<li><strong>포털 렌더링:</strong> 포털 입구 안쪽에 목적지 환경이 표시됩니다.</li>
+<li><strong>캐릭터 통과:</strong> 플레이어가 포털 경계를 통과해 연결된 포털에서
+  나옵니다.</li>
+</ul>
+<h2 id="_3">시작하기 전에</h2>
+<p>다음 항목이 필요합니다.</p>
+<ul>
+<li>Unreal Engine 5.8.</li>
+<li>공식 테스트 환경인 Win64, DX12, SM6의 Perspective Game View.</li>
+<li>플레이 가능한 Character Blueprint가 포함된 프로젝트.</li>
+<li>Fab에서 Wormhole Portal을 추가하고 <strong>Edit &gt; Plugins</strong>에서 활성화한
+  뒤 에디터를 다시 시작한 상태.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Character Blueprint 사용</p>
+<p>이 빠른 시작 가이드는 루트 Capsule Component, Character Movement,
+물리 시뮬레이션이 꺼진 Skeletal Mesh를 갖춘 Character Blueprint를
+사용합니다.</p>
+</div>
+<h2 id="1">1. 포털 트레이스 설정</h2>
+<p>플러그인이 시작될 때 프로젝트에 필요한 포털 트레이스 채널이 없으면
+알림이 표시됩니다.</p>
+<ol>
+<li>알림에서 <strong>Add Automatically</strong>를 선택합니다.</li>
+<li>플러그인이 <code>Config/DefaultEngine.ini</code>에 <code>WPPortalTrace</code>를 추가하고
+   플러그인 설정을 새 트레이스 채널에 맞춥니다.</li>
+<li>포털 인식 트레이스를 사용하기 전에 에디터를 다시 시작합니다.</li>
+</ol>
+<div class="admonition warning">
+<p class="admonition-title">다시 시작 필요</p>
+<p>에디터를 다시 시작하기 전에는 트레이스 채널이 안정적으로 작동하지
+않습니다. 알림이 다시 나타나면 자동 설정이 완료되었는지 확인한 뒤
+에디터를 다시 시작하세요.</p>
+</div>
+<p><code>WPPortalTrace</code>는 포털 인식 트레이스에서 사용됩니다. 캐릭터 통과는 별도의
+오버랩 처리로 동작하지만, 프로젝트 설정 과정에서 이 채널도 구성해야
+합니다.</p>
+<details class="info">
+<summary>WPPortalTrace 수동 설정</summary>
+<ol>
+<li><strong>Edit &gt; Project Settings &gt; Engine &gt; Collision</strong>을 엽니다.</li>
+<li><code>WPPortalTrace</code>라는 이름의 <strong>Trace Channel</strong>을 추가합니다.</li>
+<li><strong>Default Response</strong>를 <strong>Ignore</strong>로 설정합니다.</li>
+<li><strong>Project Settings &gt; Plugins &gt; Wormhole Portal</strong>을 엽니다.</li>
+<li><strong>Portal Trace Channel</strong>을 <code>WPPortalTrace</code>에 할당된 Game Trace
+   Channel로 설정합니다.</li>
+<li>에디터를 다시 시작합니다.</li>
+</ol>
+</details>
+<h2 id="2">2. 포털 쌍 만들기</h2>
+<ol>
+<li><strong>Place Actors</strong>를 열고 <code>WormholePortalActor</code>를 검색합니다.</li>
+<li>서로 다른 위치에 네이티브 <code>WormholePortalActor</code> 인스턴스 두 개를
+   배치합니다.</li>
+<li>첫 번째 포털을 선택하고 <strong>Linked Portal</strong>을 두 번째 포털로
+   설정합니다.</li>
+</ol>
+<p>반대 방향의 연결은 자동으로 생성됩니다. 첫 번째 포털의 Metric 값도
+연결된 포털에 복사되므로 두 번째 포털을 별도로 설정할 필요가 없습니다.</p>
+<div class="admonition warning">
+<p class="admonition-title">액터 스케일을 1로 유지</p>
+<p>두 포털의 Transform Scale을 <code>(1, 1, 1)</code>로 유지하세요. 액터의
+스케일을 조정하는 대신 Metric 속성으로 포털의 물리적 크기를
+변경하세요.</p>
+</div>
+<p>기본 Metric은 다음과 같습니다.</p>
+<table>
+<thead>
+<tr>
+<th>속성</th>
+<th>기본값</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Portal Radius</strong></td>
+<td><code>50 cm</code></td>
+<td>물리 통과 판정에 사용하는 중앙 Seam의 반지름</td>
+</tr>
+<tr>
+<td><strong>Throat Half Length</strong></td>
+<td><code>100 cm</code></td>
+<td>연결된 목 길이의 절반</td>
+</tr>
+<tr>
+<td><strong>Transition Length</strong></td>
+<td><code>200 cm</code></td>
+<td>목으로 들어가고 나오는 전이 구간의 블렌드 거리</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3">3. 비주얼 데이터 베이크</h2>
+<p>항상 동일한 빠른 시작 결과를 얻을 수 있도록 테스트 전에 LUT 데이터를
+베이크합니다.</p>
+<ol>
+<li>메인 <strong>Tools</strong> 메뉴를 엽니다.</li>
+<li><strong>Wormhole Portal</strong> 아래에서 <strong>Bake All LUTs</strong>를 선택합니다.</li>
+<li><strong>LUT Bake Settings</strong>에서 <strong>Quality</strong>를 <strong>Balanced</strong>로
+   설정합니다.</li>
+<li><strong>Domain</strong>을 <strong>Current Level Auto</strong>로 설정합니다.</li>
+<li><strong>Bake</strong>를 선택합니다.</li>
+<li><code>LUT ready:</code>로 시작하는 성공 알림이 표시될 때까지 기다립니다.</li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Wormhole Portal에는 런타임 대체 경로가 있지만, 이 빠른 시작
+가이드에서는 모든 테스트가 동일한 비주얼 상태에서 시작하도록
+데이터를 먼저 베이크합니다.</p>
+</div>
+<h2 id="4">4. 캐릭터 통과 활성화</h2>
+<ol>
+<li>플레이 가능한 Character Blueprint를 엽니다.</li>
+<li>Components 패널에서 <strong>Add</strong>를 선택하고 <code>WPTransitComponent</code>를
+   추가합니다.</li>
+<li>새로 추가된 컴포넌트를 선택합니다.</li>
+<li><strong>Transit Enabled</strong>를 선택된 상태로 유지합니다.</li>
+<li><strong>Transit Type</strong>을 <strong>Auto</strong>로 유지합니다.</li>
+<li>Blueprint를 <strong>Compile</strong>하고 <strong>Save</strong>합니다.</li>
+</ol>
+<div class="admonition tip">
+<p class="admonition-title">여러 액터 설정하기</p>
+<p>여러 액터의 통과 설정을 검사하거나 한꺼번에 적용해야 한다면
+<strong>Tools</strong>를 열고 <strong>Wormhole Portal</strong> 아래에서 <strong>Transit Manager</strong>를
+선택하세요. <strong>Ready</strong> 상태는 액터 설정이 호환된다는 의미이며,
+런타임 이동 테스트를 대신하지는 않습니다.</p>
+</div>
+<h2 id="5">5. 포털 테스트</h2>
+<p>Play In Editor를 시작하고 캐릭터로 첫 번째 포털에 접근합니다.</p>
+<ul>
+<li><strong>☐ 포털 렌더링:</strong> 입구 너머를 바라보고 목적지 공간이 보이는지
+  확인합니다.</li>
+<li><strong>☐ 캐릭터 통과:</strong> 경계를 통과해 캐릭터가 연결된 포털에서 나오는지
+  확인합니다.</li>
+</ul>
+<div class="admonition success">
+<p class="admonition-title">빠른 시작 완료</p>
+<p>두 항목을 모두 통과하면 포털 쌍을 레벨 디자인과 게임플레이에
+적용할 준비가 완료된 것입니다.</p>
+</div>
+<h2 id="_4">문제 해결</h2>
+<table>
+<thead>
+<tr>
+<th>증상</th>
+<th>확인할 항목</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WPPortalTrace</code> 경고가 계속 표시됨</td>
+<td><strong>Add Automatically</strong>를 선택하고 설정 파일 업데이트가 완료되었는지 확인한 뒤 에디터를 다시 시작합니다.</td>
+</tr>
+<tr>
+<td>포털이 보이지 않음</td>
+<td><strong>Linked Portal</strong>, 액터의 단위 스케일, Win64/DX12/SM6 Perspective Game View, 완료된 LUT 베이크를 확인합니다.</td>
+</tr>
+<tr>
+<td>플레이어가 포털을 통과하지 못함</td>
+<td><code>WPTransitComponent</code>, <strong>Transit Type: Auto</strong>, <strong>Transit Enabled</strong> 및 필수 Character 컴포넌트를 확인합니다.</td>
+</tr>
+<tr>
+<td>Runtime Log에 <code>RuntimeReason=EWPTransitFailReason::DoesNotFitGate</code>가 표시됨</td>
+<td>Actor의 투영 통과 단면이 Source Gate/Core Radius 안에 들어가지 않습니다. <strong>Portal Radius</strong>를 늘리거나 Actor Collision Bounds를 수정·축소하고, Portal Actor는 스케일링하지 마세요.</td>
+</tr>
+<tr>
+<td>Transit Manager에 <code>Ready</code>가 표시되지 않음</td>
+<td>Transit Manager에서 액터를 선택하고 보고된 설정 문제를 해결한 뒤 다시 테스트합니다.</td>
+</tr>
+<tr>
+<td>패키징된 빌드에서 베이크 데이터를 찾지 못함</td>
+<td>프로젝트의 Cook 디렉터리에 <code>/WormholePortal/WormholePortal/Generated/LUT</code>가 포함되어 있는지 확인합니다.</td>
+</tr>
+</tbody>
+</table>
+<details class="info">
+<summary>추가 진단 정보 수집</summary>
+<ul>
+<li><strong>Output Log</strong>를 <code>LogWormhole</code>로 필터링합니다.</li>
+<li>콘솔에서 <code>stat WormholePortal</code>을 실행해 런타임 통계를 표시합니다.</li>
+<li><strong>Transit Manager</strong>를 열고 액터가 <strong>Ready</strong> 상태인지 확인합니다.</li>
+</ul>
+</details>
+<h2 id="_5">다음 단계</h2>
+<p>다음 내용을 살펴보세요.</p>
+<ul>
+<li>포털 Metric과 렌더링.</li>
+<li>Transit Manager 작업 흐름.</li>
+<li>머티리얼 클리핑과 복셀 충돌.</li>
+<li>포털 인식 트레이스, 오디오, 조명 및 World Partition.</li>
+<li>포함된 전체 예제는 <a href="../demo/index.html">데모</a>를 참고하세요.</li>
+<li>기능 가이드는 <a href="../features/index.html">기능</a>을 참고하세요.</li>
+<li>설정과 인터페이스는 <a href="../reference.html">레퍼런스</a>를 참고하세요.</li>
+<li>알려진 문제와 해결 방법은 <a href="../issues/index.html">문제 해결</a>을 참고하세요.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">생성된 LUT 데이터 Cook</p>
+<p>플러그인은 설정된 <strong>Generated LUT Asset Path</strong>를
+<strong>Project Settings &gt; Packaging &gt; Additional Asset Directories to Cook</strong>와
+동기화합니다. 패키징 전에 기본 경로
+<code>/WormholePortal/WormholePortal/Generated/LUT</code> 또는 직접 지정한
+<code>/WormholePortal/...</code> 경로가
+포함되어 있는지 확인하세요. 기본 설정 항목은 다음과 같습니다.</p>
+<div class="highlight"><pre><code><span class="k">[/Script/UnrealEd.ProjectPackagingSettings]</span>
+<span class="na">+DirectoriesToAlwaysCook=(Path</span><span class="o">=</span><span class="s">&quot;/WormholePortal/WormholePortal/Generated/LUT&quot;</span><span class="na">)</span>
+</code></pre></div>
+</div>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Home - Wormhole Portal</title>
+  <link rel="stylesheet" href="stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="index.html">
+  <link rel="alternate" hreflang="ko" href="ko/index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="Language">
+        <a hreflang="en" lang="en" href="index.html">English</a>
+        <a hreflang="ko" lang="ko" href="ko/index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="Documentation">
+        <p class="section-nav__title">Documentation</p>
+        <div class="section-nav__links">
+          <a href="index.html" aria-current="page">Home</a>
+          <a href="getting_started/index.html">Getting Started</a>
+          <a href="features/index.html">Features</a>
+          <a href="demo/index.html">Demo</a>
+          <a href="reference.html">Reference</a>
+          <a href="issues/index.html">Issues</a>
+          <a href="faq/index.html">FAQ</a>
+          <a href="support/index.html">Compatibility &amp; Support</a>
+        </div>
+      </nav>
+      <p class="offline-note">This documentation opens locally without a network connection.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<div class="wp-introduction" id="introduction">
+<p><span class="wp-introduction__eyebrow">WORMHOLE PORTAL 1.0</span></p>
+<h2 id="linked-spaces-one-continuous-world">Linked spaces, one continuous world.</h2>
+<p>Wormhole Portal is an Unreal Engine 5.8 plugin for connected spaces that look
+and behave as parts of the same world. Its physically inspired renderer bends
+the destination view through a configurable throat and transition field rather
+than treating the portal as a flat window.</p>
+<p>Portal-aware transit, traces, World Partition streaming, spatial audio, and
+Point/Spot light transmission extend the connection beyond rendering.</p>
+</div>
+<h2 id="start-here">Start here</h2>
+<ul>
+<li><a href="getting_started/index.html">Getting Started</a> builds a linked, traversable pair in
+  5–10 minutes.</li>
+<li><a href="demo/index.html">Demo</a> opens the included sample map and identifies the examples worth
+  inspecting.</li>
+<li><a href="features/index.html">Features</a> explains the rendering and gameplay systems.</li>
+<li><a href="reference.html">Reference</a> lists public properties, Blueprint nodes, C++ entry
+  points, settings, defaults, and diagnostics.</li>
+<li><a href="issues/index.html">Issues</a> covers current limitations and troubleshooting.</li>
+<li><a href="faq/index.html">FAQ</a> answers common production questions.</li>
+<li><a href="support/index.html">Compatibility, Releases, and Support</a> records the supported target,
+  release notes, upgrade checklist, and information to include with a report.</li>
+</ul>
+<h2 id="compatibility-at-a-glance">Compatibility at a glance</h2>
+<p>Version 1.0 is officially tested and supported with <strong>Unreal Engine 5.8 on
+Win64, DirectX 12, and SM6</strong>. Portal compositing requires one primary,
+perspective, non-stereo Game View. Linux, macOS, DirectX 11, mobile, consoles,
+and dedicated-server targets are not declared supported; the renderer is
+excluded from Server targets. See <a href="support/index.html">Compatibility and Support</a> before
+adopting another environment. Wormhole Portal is published by <strong>Team Beaver
+Studio</strong>; the official support contact is
+<a href="mailto:beavergametech@gmail.com">beavergametech@gmail.com</a>.</p>
+<div class="admonition tip">
+<p class="admonition-title">Evaluate with the included map</p>
+<p>Enable <strong>Show Plugin Content</strong>, open
+<code>WormholePortal Content/WormholePortal/Demo/Lv_WormholePortal_Content_Demo</code>, and run Play
+In Editor in the supported Win64 DX12 SM6 environment. The
+<a href="demo/index.html">Demo guide</a> explains what to inspect and how to reuse the sample
+responsibly.</p>
+</div>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

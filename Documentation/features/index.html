@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Features - Wormhole Portal</title>
+  <link rel="stylesheet" href="../stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="index.html">
+  <link rel="alternate" hreflang="ko" href="../ko/features/index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="../index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="Language">
+        <a hreflang="en" lang="en" href="index.html">English</a>
+        <a hreflang="ko" lang="ko" href="../ko/features/index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="Documentation">
+        <p class="section-nav__title">Documentation</p>
+        <div class="section-nav__links">
+          <a href="../index.html">Home</a>
+          <a href="../getting_started/index.html">Getting Started</a>
+          <a href="index.html" aria-current="page">Features</a>
+          <a href="../demo/index.html">Demo</a>
+          <a href="../reference.html">Reference</a>
+          <a href="../issues/index.html">Issues</a>
+          <a href="../faq/index.html">FAQ</a>
+          <a href="../support/index.html">Compatibility &amp; Support</a>
+        </div>
+      </nav>
+      <p class="offline-note">This documentation opens locally without a network connection.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="features">Features</h1>
+<p>Wormhole Portal combines a physically inspired spherical portal renderer with
+gameplay systems for transit, traces, audio, light, and World Partition. These
+systems use the same linked-pair and metric model, so the rendered view and the
+gameplay route lead to the same destination.</p>
+<h2 id="volumetric-wormhole-rendering">Volumetric wormhole rendering</h2>
+<p>The portal is rendered as a volume rather than a flat window. Its opening,
+throat, and transition region bend the destination view into a continuous
+spherical image.</p>
+<ul>
+<li><strong>Volumetric throat:</strong> the camera can approach and enter the portal volume.</li>
+<li><strong>Spatial lensing:</strong> rays bend through the configured wormhole metric.</li>
+<li><strong>Continuous destination view:</strong> the linked space remains visible across the
+  opening and throat.</li>
+<li><strong>Shared LUT rendering:</strong> baked lookup data accelerates ray mapping. When
+  enabled, the runtime fallback can generate compatible transient data
+  asynchronously.</li>
+<li><strong>Adaptive captures:</strong> cubemap resolution follows visibility and on-screen
+  size, with a separate resolution inside the safe proxy.</li>
+</ul>
+<p>Scene-capture show flags in <strong>Project Settings &gt; Plugins &gt; Wormhole Portal</strong>
+affect managed portal cube captures only. They do not change the player's main
+view.</p>
+<h2 id="linked-pairs-and-metric-controls">Linked pairs and metric controls</h2>
+<p>Each <code>WormholePortalActor</code> links to one other portal. Assigning <strong>Linked
+Portal</strong> creates the reciprocal link and synchronizes the metric across the
+pair.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Portal Radius</strong> (<code>ρ</code>)</td>
+<td>Radius of the central seam and physical traversal gate</td>
+</tr>
+<tr>
+<td><strong>Throat Half Length</strong> (<code>a</code>)</td>
+<td>Half of the connected throat length</td>
+</tr>
+<tr>
+<td><strong>Transition Length</strong> (<code>T</code>)</td>
+<td>Blend distance between ordinary space and the throat</td>
+</tr>
+</tbody>
+</table>
+<p>The mouth radius is <code>ρ + a</code>; the transition radius is <code>ρ + a + T</code>.</p>
+<p>Keep each Portal Actor's Transform Scale at <code>(1, 1, 1)</code>. Author the base metric
+with the three properties before BeginPlay. At runtime, initialize all three
+physical values atomically with <strong>Initialize Physical Metric</strong>. A later
+initialization is accepted only when it preserves the initialized <code>a/ρ</code> and
+<code>T/ρ</code> ratios.</p>
+<p>Choose the runtime scale control by intent:</p>
+<ul>
+<li><strong>Set Uniform Physical Metric Scale</strong> uniformly resizes the physical metric,
+  collision, bounds, LUT selection, and capture resolution. It is an expensive
+  physical change.</li>
+<li><strong>Set Portal Visual Scale</strong> changes only the rendered size. It is the
+  recommended control for per-frame growth and does not change collision,
+  metric values, bounds, LUT identity, capture ownership/warmup/cadence, or
+  dynamic resolution.</li>
+</ul>
+<h2 id="actor-transit">Actor transit</h2>
+<p>Add <code>WPTransitComponent</code> to an Actor that must cross a portal. <strong>Transit Type:
+Auto</strong> resolves a compatible strategy in this order: Character, Projectile,
+Pawn, then Physics.</p>
+<p>Every participating Actor needs actor-owned, Movable, collision-enabled
+Primitive Components that match its transit handler. Physics transit also
+requires at least one supported body with Physics collision enabled and
+simulation running. That body must be either:</p>
+<ul>
+<li>a non-instanced <code>StaticMeshComponent</code> with a valid Static Mesh; or</li>
+<li>a <code>BoxComponent</code>, <code>SphereComponent</code>, <code>CapsuleComponent</code>, or other supported
+  <code>ShapeComponent</code>.</li>
+</ul>
+<p><code>InstancedStaticMeshComponent</code> is not supported as a transit primitive.</p>
+<p>During a crossing, the system maintains the Master/Twin relationship, maps
+transform and movement through the linked endpoints, and applies a short
+cooldown to prevent an immediate reverse transit. Portal link, metric,
+movement, and transit relationship state are replicated; validate the complete
+behavior under the replication and relevancy model used by your project.</p>
+<h3 id="material-clip-and-voxel-collision">Material Clip and Voxel Collision</h3>
+<ul>
+<li><strong>Material Clip</strong> writes clip center, normal, and radius into four consecutive
+  Custom Primitive Data slots. A compatible material function uses those values
+  to hide the portion crossing the boundary.</li>
+<li><strong>Voxel Collision</strong> replaces participating collision with baked box voxels
+  while the Master and Twin coexist.</li>
+</ul>
+<p>Voxel baking supports non-instanced Static Mesh Components with usable Simple
+Collision and Box, Sphere, and Capsule Components. Supported Static Mesh
+Simple Collision elements are Sphere, Box, Capsule, and Convex. <strong>Max Voxel
+Count</strong> applies independently to each baked Primitive, not to an entire Actor or
+Static Mesh asset collection.</p>
+<p>Enable <strong>Use Voxel Collision</strong>, then select <strong>Bake Voxel Body</strong> in the Transit
+Component's Details panel.</p>
+<h2 id="portal-aware-traces">Portal-aware traces</h2>
+<p>Standard Unreal line traces do not continue through linked portal space. The
+portal-aware library detects portals on the reserved <code>WPPortalTrace</code> channel
+and resumes the logical ray from the linked exit.</p>
+<p>Blueprint and C++ APIs provide:</p>
+<ul>
+<li>single-hit and multi-hit line traces;</li>
+<li>compact and detailed results;</li>
+<li>logical distance across every scene segment; and</li>
+<li>traversal counts with per-portal entry/exit events.</li>
+</ul>
+<p>The project must contain a Trace Channel named <code>WPPortalTrace</code>. The startup
+notification can add and align it; restart the Editor after the change. Pass
+the ordinary collision channel for the scene objects you want to hit—never pass
+<code>WPPortalTrace</code> as the trace's scene channel.</p>
+<h2 id="spatial-audio-through-portals">Spatial audio through portals</h2>
+<p>The audio subsystem discovers eligible spatialized Audio Components and creates
+a re-radiated proxy on the other side of a linked pair.</p>
+<ul>
+<li>Routes are evaluated independently in both directions.</li>
+<li>Source-to-entry and exit-to-listener occlusion are tested separately.</li>
+<li>Blocked routes can reduce volume and apply a low-pass filter.</li>
+<li>Runtime-created spatialized Audio Components are periodically discovered.</li>
+</ul>
+<p>The current model supports one primary listener and one portal hop. Add the
+<code>WP.PortalAudio.Disabled</code> tag to an Audio Component or its owner to exclude it.</p>
+<h2 id="point-and-spot-light-transmission">Point and Spot light transmission</h2>
+<p>Point and Spot Lights that affect an entry endpoint can produce a synchronized
+proxy at the linked exit. The proxy follows source transform and light
+properties, restricts illumination to the aperture, and can transmit
+source-side visibility for shadows.</p>
+<p>Directional and Rect Lights are not transmitted. Neither are Global
+Illumination, reflections, volumetrics, translucent or colored shadows, lights
+inside a portal, or pairs with asymmetric radii. See
+<a href="../issues/index.html#portal-lighting">Issues</a> before designing a lighting-dependent
+scene.</p>
+<h2 id="world-partition-destination-streaming">World Partition destination streaming</h2>
+<p>In a World Partition level, each portal can keep the linked destination area
+loaded before the player reaches the opening.</p>
+<ul>
+<li><strong>Streaming Preload Distance</strong> starts the destination request.</li>
+<li><strong>Streaming Release Distance</strong> controls when it may be released.</li>
+<li><strong>Streaming Query Interval</strong> controls proximity reevaluation.</li>
+<li><code>IsLinkedPortalAreaReady()</code> exposes destination readiness to gameplay.</li>
+</ul>
+<p>Keep release distance greater than preload distance to avoid rapid load/unload
+changes. Transit can be rejected as <code>NotReady</code> until the linked area is ready.</p>
+<h2 id="editor-workflow-and-diagnostics">Editor workflow and diagnostics</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tools &gt; Wormhole Portal &gt; Transit Manager</strong></td>
+<td>Scan Actors, report exact setup problems, and add transit to compatible Actors</td>
+</tr>
+<tr>
+<td><strong>Tools &gt; Wormhole Portal &gt; Bake All LUTs</strong></td>
+<td>Build the shared rendering LUT catalog for portals in the current level</td>
+</tr>
+<tr>
+<td>Transit Component <strong>Bake Voxel Body</strong></td>
+<td>Bake collision data for each supported participating Primitive</td>
+</tr>
+</tbody>
+</table>
+<p>Portal Actors can draw metric boundaries in the Editor, and Transit Components
+can draw active traversal geometry. For broader diagnostics:</p>
+<ul>
+<li>filter <strong>Output Log</strong> by <code>LogWormhole</code>;</li>
+<li>enter <code>Log LogWormhole Verbose</code> before reproducing a transit rejection in a
+  non-Shipping build;</li>
+<li>run <code>stat WormholePortal</code> for plugin counters and CPU timings; and</li>
+<li>use <code>stat gpu</code> or ProfileGPU for GPU execution cost.</li>
+</ul>
+<h2 id="where-to-go-next">Where to go next</h2>
+<ul>
+<li>Build a pair in <a href="../getting_started/index.html">Getting Started</a>.</li>
+<li>Explore the included scenarios in <a href="../demo/index.html">Demo</a>.</li>
+<li>Look up exact defaults and integration examples in
+  <a href="../reference.html">Reference</a>.</li>
+<li>Diagnose limitations in <a href="../issues/index.html">Issues</a>.</li>
+</ul>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

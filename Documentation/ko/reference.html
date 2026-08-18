@@ -1,0 +1,1084 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>레퍼런스 - Wormhole Portal</title>
+  <link rel="stylesheet" href="stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="../reference.html">
+  <link rel="alternate" hreflang="ko" href="reference.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">본문으로 건너뛰기</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="언어">
+        <a hreflang="en" lang="en" href="../reference.html">English</a>
+        <a hreflang="ko" lang="ko" href="reference.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="문서 목차">
+        <p class="section-nav__title">문서 목차</p>
+        <div class="section-nav__links">
+          <a href="index.html">홈</a>
+          <a href="getting_started/index.html">시작하기</a>
+          <a href="features/index.html">기능</a>
+          <a href="demo/index.html">데모</a>
+          <a href="reference.html" aria-current="page">레퍼런스</a>
+          <a href="issues/index.html">문제 해결</a>
+          <a href="faq/index.html">FAQ</a>
+          <a href="support/index.html">호환성 및 지원</a>
+        </div>
+      </nav>
+      <p class="offline-note">이 문서는 네트워크 연결 없이 로컬 파일로 열립니다.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="_1">레퍼런스</h1>
+<p>이 페이지는 Wormhole Portal이 제공하는 주요 속성, Blueprint 노드, C++
+인터페이스, 프로젝트 설정 및 진단 기능을 정리합니다.</p>
+<div class="admonition note">
+<p class="admonition-title">기본값과 프로젝트 오버라이드</p>
+<p>이 페이지의 값은 플러그인 코드 기본값입니다.
+<code>Config/DefaultEngine.ini</code> 또는 Console Variable 설정에 저장된 값이
+있으면 해당 프로젝트 값이 우선합니다.</p>
+</div>
+<h2 id="portal-actor">Portal Actor</h2>
+<p><code>AWormholePortalActor</code>는 웜홀의 한쪽 끝을 나타냅니다. 한 액터에서
+<strong>Linked Portal</strong>을 지정하면 반대 방향 연결이 자동으로 만들어지고, 시작
+포털의 Metric 값이 두 끝점에 동기화됩니다.</p>
+<div class="admonition warning">
+<p class="admonition-title">포털 스케일을 1로 유지</p>
+<p>Metric 계산은 Actor Scale <code>(1, 1, 1)</code>을 전제로 합니다. Actor를
+스케일링하지 말고 <strong>Portal Radius</strong>, <strong>Throat Half Length</strong>,
+<strong>Transition Length</strong>로 크기를 조절하세요.</p>
+</div>
+<h3 id="_2">주요 속성</h3>
+<table>
+<thead>
+<tr>
+<th>속성</th>
+<th>코드 기본값</th>
+<th>제약 및 역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Linked Portal</strong></td>
+<td>없음</td>
+<td>목적지 끝점입니다. 자기 자신과 연결할 수 없습니다.</td>
+</tr>
+<tr>
+<td><strong>Portal Radius</strong> (<code>ρ</code>)</td>
+<td><code>50 cm</code></td>
+<td>Seam 및 물리 통과 반지름입니다. 최소 <code>1 cm</code>이며 <code>T &gt; 0</code>일 때 활성 LUT Domain에 맞게 제한됩니다.</td>
+</tr>
+<tr>
+<td><strong>Throat Half Length</strong> (<code>a</code>)</td>
+<td><code>100 cm</code></td>
+<td>Seam에서 Mouth까지의 거리입니다. 최소 <code>0</code>입니다.</td>
+</tr>
+<tr>
+<td><strong>Transition Length</strong> (<code>T</code>)</td>
+<td><code>200 cm</code></td>
+<td>Mouth에서 평탄 공간까지의 거리입니다. 최소 <code>0</code>이며 활성 LUT Domain에 맞게 제한됩니다. <code>0</code>이면 전이가 없는 경로를 사용합니다.</td>
+</tr>
+<tr>
+<td><strong>LUT Asset Override</strong></td>
+<td>없음</td>
+<td>프로젝트 LUT Catalog 대신 사용할 인스턴스별 LUT입니다.</td>
+</tr>
+<tr>
+<td><strong>Streaming Preload Distance</strong></td>
+<td><code>15,000 cm</code></td>
+<td>World Partition 목적지 로딩을 시작합니다.</td>
+</tr>
+<tr>
+<td><strong>Streaming Release Distance</strong></td>
+<td><code>20,000 cm</code></td>
+<td>로딩을 유지하는 바깥 거리입니다. Preload Distance 이상으로 제한됩니다.</td>
+</tr>
+<tr>
+<td><strong>Streaming Query Interval</strong></td>
+<td><code>0.2 s</code></td>
+<td>근접 수요를 다시 검사하는 간격입니다. 최소 <code>0.01 s</code>입니다.</td>
+</tr>
+<tr>
+<td><strong>Draw Portal Debug</strong></td>
+<td>Editor에서 켜짐</td>
+<td>Seam, Mouth, Transition 경계를 표시합니다. PIE 시작 시 강제로 꺼집니다.</td>
+</tr>
+<tr>
+<td><strong>Uniform Physical Metric Scale</strong></td>
+<td><code>1.0</code></td>
+<td>초기화된 Metric 전체를 균일하게 확대합니다. Collision, Bounds, Visibility와 Capture 정책도 바뀝니다.</td>
+</tr>
+<tr>
+<td><strong>Portal Visual Scale</strong></td>
+<td><code>1.0</code></td>
+<td>Compositor가 표시하는 크기만 바꿉니다. 물리 Metric과 Collision은 바뀌지 않습니다.</td>
+</tr>
+</tbody>
+</table>
+<p>Metric 경계는 다음과 같습니다.</p>
+<div class="highlight"><pre><code>Mouth Radius      = Portal Radius + Throat Half Length
+Transition Radius = Mouth Radius + Transition Length
+LUT 비율          = Transition Length / Portal Radius
+</code></pre></div>
+<h3 id="blueprint-api">Blueprint API</h3>
+<table>
+<thead>
+<tr>
+<th>노드</th>
+<th>종류</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Set Linked Portal</code></td>
+<td>Callable</td>
+<td>양방향 연결을 만들거나 교체하고 Metric을 동기화합니다.</td>
+</tr>
+<tr>
+<td><code>Clear Linked Portal</code></td>
+<td>Callable</td>
+<td>양방향 연결을 해제합니다.</td>
+</tr>
+<tr>
+<td><code>Get Linked Portal</code> / <code>Has Linked Portal</code></td>
+<td>Pure</td>
+<td>연결 상태를 읽습니다.</td>
+</tr>
+<tr>
+<td><code>Is Linked Portal Area Ready</code></td>
+<td>Pure</td>
+<td>일반 레벨에서는 항상 <code>true</code>이며, World Partition에서는 목적지 스트리밍 준비 상태를 반환합니다.</td>
+</tr>
+<tr>
+<td><code>Set Portal Radius</code></td>
+<td>Callable</td>
+<td>제작 단계에서 <code>ρ</code>를 설정합니다. BeginPlay 이후의 독립 변경은 거부됩니다.</td>
+</tr>
+<tr>
+<td><code>Set Throat Half Length</code></td>
+<td>Callable</td>
+<td>제작 단계에서 <code>a</code>를 설정합니다. BeginPlay 이후의 독립 변경은 거부됩니다.</td>
+</tr>
+<tr>
+<td><code>Set Transition Length</code></td>
+<td>Callable</td>
+<td>제작 단계에서 <code>T</code>를 설정합니다. BeginPlay 이후의 독립 변경은 거부됩니다.</td>
+</tr>
+<tr>
+<td><code>Initialize Physical Metric</code></td>
+<td>Callable</td>
+<td>최종 <code>ρ</code>, <code>a</code>, <code>T</code>를 한 번에 초기화합니다. 런타임 후속 호출은 처음의 <code>a/ρ</code>, <code>T/ρ</code> 비율을 유지하는 균일 변경만 허용합니다.</td>
+</tr>
+<tr>
+<td><code>Set Metric Parameters</code></td>
+<td>Callable, Deprecated</td>
+<td><code>Initialize Physical Metric</code>의 하위 호환 이름입니다. 새 코드에서 사용하지 마세요.</td>
+</tr>
+<tr>
+<td><code>Set Uniform Physical Metric Scale</code> / <code>Get Uniform Physical Metric Scale</code></td>
+<td>Callable / Pure</td>
+<td>초기화한 Metric을 균일하게 물리 확대하고 현재 배수를 읽습니다.</td>
+</tr>
+<tr>
+<td><code>Set Portal Visual Scale</code> / <code>Get Portal Visual Scale</code></td>
+<td>Callable / Pure</td>
+<td>렌더링 크기만 바꾸고 읽습니다. 프레임 단위 성장 효과에 권장합니다.</td>
+</tr>
+<tr>
+<td>Metric Getter</td>
+<td>Pure</td>
+<td><code>Get Portal Radius</code>, <code>Get Mouth Radius</code>, <code>Get Throat Half Length</code>, <code>Get Transition Length</code>, <code>Get Transition Radius</code></td>
+</tr>
+<tr>
+<td><code>Get Portal Cube Render Target</code></td>
+<td>Pure</td>
+<td>런타임이 소유한 참조를 반환합니다. 크기 변경, 초기화, 업데이트 또는 해제를 호출하지 마세요.</td>
+</tr>
+<tr>
+<td><code>Get LUT Texture</code> / <code>Get LUT Z</code></td>
+<td>Pure</td>
+<td>활성 Volume LUT와 현재 포털의 논리적 Slice를 반환합니다.</td>
+</tr>
+<tr>
+<td><code>Transform Ray Through Portal</code></td>
+<td>Callable</td>
+<td>진입 표면점과 안쪽 방향을 연결된 포털 공간으로 변환합니다. Trace는 수행하지 않습니다. 기본 Exit Offset은 <code>2 cm</code>입니다.</td>
+</tr>
+<tr>
+<td><code>Set Draw Portal Debug</code> / <code>Is Portal Debug Enabled</code></td>
+<td>Callable / Pure</td>
+<td>Editor 경계 표시를 제어합니다.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition important">
+<p class="admonition-title">런타임 크기 변경 계약</p>
+<p><code>Initialize Physical Metric</code>으로 최종 형태를 먼저 확정하세요. 물리적으로
+커져야 할 때만 <code>Set Uniform Physical Metric Scale</code>을 사용하고, 생성
+애니메이션처럼 시각적인 변화는 <code>Set Portal Visual Scale</code>을 사용합니다.
+Actor Transform Scale은 이 계산에 반영되지 않으므로 <code>(1, 1, 1)</code>로
+유지해야 표시와 Collision의 불일치를 피할 수 있습니다.</p>
+</div>
+<h2 id="transit-component">Transit Component</h2>
+<p>Actor가 포털을 통과하게 하려면 <code>UWPTransitComponent</code>를 추가합니다.</p>
+<h3 id="_3">속성</h3>
+<table>
+<thead>
+<tr>
+<th>속성</th>
+<th>기본값</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Transit Enabled</strong></td>
+<td>켜짐</td>
+<td>Portal Overlap이 Transit을 시작할 수 있게 합니다.</td>
+</tr>
+<tr>
+<td><strong>Transit Type</strong></td>
+<td><code>Auto</code></td>
+<td>처리 타입을 직접 선택하거나 자동 판별합니다.</td>
+</tr>
+<tr>
+<td><strong>Ignore Time</strong></td>
+<td><code>0.15 s</code></td>
+<td>성공적인 Commit 후 즉시 재진입하는 것을 막습니다.</td>
+</tr>
+<tr>
+<td><strong>Draw Debug</strong></td>
+<td>꺼짐</td>
+<td>활성 Transit 진단 형상을 표시합니다.</td>
+</tr>
+<tr>
+<td><strong>Use Voxel Collision</strong></td>
+<td>꺼짐</td>
+<td>Master와 Twin이 공존하는 동안 베이크된 복셀 충돌을 사용합니다.</td>
+</tr>
+<tr>
+<td><strong>Use Material Clip</strong></td>
+<td>꺼짐</td>
+<td>Custom Primitive Data를 통해 호환 머티리얼을 제어합니다.</td>
+</tr>
+<tr>
+<td><strong>Voxel Size</strong></td>
+<td><code>20 cm</code></td>
+<td>Editor Bake에서 요청할 복셀 한 변의 길이입니다.</td>
+</tr>
+<tr>
+<td><strong>Max Voxel Count</strong></td>
+<td><code>256</code></td>
+<td>각 Bake 대상 Primitive당 최대 Box 수입니다. 범위는 <code>1–512</code>입니다.</td>
+</tr>
+<tr>
+<td><strong>Center Mode</strong></td>
+<td><code>Root Component Location</code></td>
+<td>진입 접평면의 기준입니다. 선택값: <code>Root Component Location</code>, <code>Actor OBB Center</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><code>Auto</code>의 판별 순서는 <code>Character</code>, <code>Projectile</code>, <code>Pawn</code>, <code>Physics</code>입니다.
+구체적인 타입을 선택하면 그 타입만 검증하며 다른 Handler로 대체되지
+않습니다.</p>
+<p>모든 타입은 Actor가 직접 소유하는 Movable Collision Primitive가 필요합니다.
+Transit 후보 중 하나 이상은 Query Collision과 <strong>Generate Overlap Events</strong>가
+켜져 있고 포털 Trigger와 Overlap할 수 있어야 합니다. Instanced Static Mesh
+Component는 지원하지 않습니다.</p>
+<table>
+<thead>
+<tr>
+<th>타입</th>
+<th>필수 구성</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Character</strong></td>
+<td><code>ACharacter</code>, Root Capsule, 해당 Capsule을 Updated Component로 사용하는 Character Movement. 선택적 시각 Skeletal Mesh가 있으면 Physics Simulation이 꺼져 있어야 함</td>
+</tr>
+<tr>
+<td><strong>Projectile</strong></td>
+<td>유효한 <code>UProjectileMovementComponent</code>와 Actor 소유의 Updated Primitive. 해당 Primitive는 Physics Simulation을 사용하지 않음</td>
+</tr>
+<tr>
+<td><strong>Pawn</strong></td>
+<td>Character가 아닌 <code>APawn</code>, Pawn Movement, Root이자 Updated Component인 Actor 소유 Primitive. 해당 Primitive는 Physics Simulation을 사용하지 않음</td>
+</tr>
+<tr>
+<td><strong>Physics</strong></td>
+<td>Physics Collision 및 Simulation이 켜진 지원 단일 Body Primitive 하나 이상. 유효한 Mesh의 Static Mesh 또는 Shape Component를 지원하며 Instanced Static Mesh는 제외</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Use Voxel Collision</strong>은 Instanced가 아닌 Static Mesh와 Box/Sphere/Capsule
+Shape Component에 사용할 수 있습니다. Static Mesh의 Bake Source는 Sphere,
+Box, Capsule 또는 Convex Simple Collision입니다. 생성 기본 경로는
+<code>/WormholePortal/WormholePortal/Generated/Voxels</code>이며 <strong>Max Voxel Count</strong>는 각 참여
+Primitive별 제한입니다.</p>
+<p><strong>Use Material Clip</strong>을 사용할 때는
+<code>/WormholePortal/WormholePortal/Materials/MaterialFunctions/MF_WPTransitClip</code>을 Material에
+연결합니다. 기본 <strong>Clip Base Index</strong> <code>28</code>부터 연속된 네 Custom Primitive
+Data 슬롯이 비어 있고 Material 쪽 Index와 Project Settings가 같은지
+확인하세요.</p>
+<h3 id="delegate">Delegate</h3>
+<table>
+<thead>
+<tr>
+<th>Delegate</th>
+<th>호출 시점</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>On Phase Changed</code></td>
+<td>소유 Actor의 Transit Phase가 변경될 때</td>
+</tr>
+<tr>
+<td><code>On Twin Preparing</code></td>
+<td>Template 복제가 끝난 직후이자 Twin Construction Script 직전. 동기 작업만 안전하며 <code>Delay</code> 같은 Latent Action을 사용하면 안 됩니다.</td>
+</tr>
+<tr>
+<td><code>On Twin Created</code></td>
+<td>Twin 생성과 Run 준비가 완료될 때</td>
+</tr>
+<tr>
+<td><code>On Twin Removing</code></td>
+<td>Twin이 제거되기 직전</td>
+</tr>
+</tbody>
+</table>
+<h3 id="blueprint-api_1">Blueprint API</h3>
+<table>
+<thead>
+<tr>
+<th>노드</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Get Phase</code></td>
+<td><code>Idle</code>, <code>Check</code>, <code>Crossing</code>, <code>Cooldown</code>을 반환합니다.</td>
+</tr>
+<tr>
+<td><code>Get Transit Role</code></td>
+<td><code>None</code>, <code>Master</code>, <code>Twin</code>을 반환합니다.</td>
+</tr>
+<tr>
+<td><code>Get Counter Part Actor</code></td>
+<td>현재 관계의 반대편 Actor를 반환합니다.</td>
+</tr>
+<tr>
+<td><code>Get Master Actor</code> / <code>Get Twin Actor</code></td>
+<td>관계의 특정 Actor를 반환합니다.</td>
+</tr>
+<tr>
+<td><code>Get Source Portal</code> / <code>Get Dest Portal</code></td>
+<td>진입 및 목적지 포털을 반환합니다.</td>
+</tr>
+<tr>
+<td><code>Get Transit Type</code></td>
+<td><code>Auto</code> 판별 이후의 실제 타입을 반환합니다.</td>
+</tr>
+<tr>
+<td><code>Get Transit Sequence</code></td>
+<td>현재 World 안에서 Transit을 식별하는 번호입니다.</td>
+</tr>
+<tr>
+<td><code>Cancel Transit</code></td>
+<td>Authority를 가진 World에서 활성 Transit을 취소합니다.</td>
+</tr>
+<tr>
+<td><code>Get Entry Data</code> / <code>Get Exit Data</code></td>
+<td>표면 위치와 바깥쪽 Normal을 반환합니다.</td>
+</tr>
+<tr>
+<td><code>Map Point</code>, <code>Map Direction</code>, <code>Map Rotation</code>, <code>Map Transform</code></td>
+<td>현재 Transit Mapping으로 값을 변환합니다. 유효한 Mapping이 없으면 <code>false</code>입니다.</td>
+</tr>
+<tr>
+<td><code>Is Point Inside Portal</code></td>
+<td>활성 진입 접평면의 안쪽인지 검사합니다.</td>
+</tr>
+<tr>
+<td><code>Refresh From Owner</code></td>
+<td>타입과 컴포넌트 캐시를 다시 판별합니다. <code>Idle</code>에서만 가능합니다.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="transit-enum">Transit Enum</h3>
+<table>
+<thead>
+<tr>
+<th>Enum</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EWPTransitType</code></td>
+<td><code>Auto</code>, <code>Physics</code>, <code>Character</code>, <code>Projectile</code>, <code>Pawn</code></td>
+</tr>
+<tr>
+<td><code>EWPTransitPhase</code></td>
+<td><code>Idle</code>, <code>Check</code>, <code>Crossing</code>, <code>Cooldown</code></td>
+</tr>
+<tr>
+<td><code>EWPTransitRole</code></td>
+<td><code>None</code>, <code>Master</code>, <code>Twin</code></td>
+</tr>
+<tr>
+<td><code>EWPTransitResult</code></td>
+<td><code>None</code>, <code>Rejected</code>, <code>Committed</code>, <code>Cancelled</code></td>
+</tr>
+<tr>
+<td><code>EWPTransitFailReason</code></td>
+<td><code>None</code>, <code>NotReady</code>, <code>PortalUnavailable</code>, <code>AlreadyInTransit</code>, <code>CooldownActive</code>, <code>DoesNotFitGate</code>, <code>TwinCreationFailed</code>, <code>PortalDestroyed</code>, <code>InternalError</code>, <code>UnsupportedActor</code>, <code>InvalidSetup</code>, <code>TransitDisabled</code>, <code>MissingPrimitives</code>, <code>MissingPhysicsMesh</code>, <code>MissingVoxelData</code>, <code>InvalidVelocity</code>, <code>InvalidCenter</code>, <code>InvalidPlane</code>, <code>BeginFailed</code>, <code>VoxelBeginFailed</code>, <code>UpdateFailed</code>, <code>RuntimeStateLost</code>, <code>MappingInvalid</code>, <code>InvalidRunState</code>, <code>ReturnedToSource</code>, <code>CommitFailed</code>, <code>CancelRequested</code>, <code>SubsystemClosed</code></td>
+</tr>
+</tbody>
+</table>
+<p>설정 검사기와 Transit Manager가 사용하는 <code>EWPTransitResolveFailReason</code> 값은
+다음과 같습니다.</p>
+<div class="highlight"><pre><code>None, UnsupportedActor, TransitDisabled, MissingPrimitives, NoPhysicsBody,
+MissingVoxelData, TypeMismatch, MissingMovement, InvalidMoveOwner,
+InvalidUpdatedPart, InvalidRootPart, InvalidPartOwner, PartNotMovable,
+PartNoCollision, UnsupportedPart, ExcludedPart, SimPhysics, InvalidMoveType,
+NoOverlapPart
+</code></pre></div>
+<p><code>DoesNotFitGate</code>는 이동 방향에 수직인 Actor의 투영 통과 단면이 Source
+Portal Gate/Core Radius 안에 들어가지 않는다는 뜻입니다.</p>
+<h2 id="portal-aware-line-traces">포털 인식 Line Trace</h2>
+<p>일반 Scene Trace Channel로 <code>WPPortalTrace</code>를 전달하지 마세요. 이 채널은
+라이브러리가 포털을 찾을 때 내부적으로 사용합니다.</p>
+<table>
+<thead>
+<tr>
+<th>Blueprint 노드</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Portal Line Trace By Channel</code></td>
+<td>마지막 Blocking <code>Hit Result</code>와 종료 상태</td>
+</tr>
+<tr>
+<td><code>Portal Line Trace Detailed By Channel</code></td>
+<td>논리적 거리와 Portal Event를 포함한 <code>FWPPortalTraceResult</code></td>
+</tr>
+<tr>
+<td><code>Portal Line Trace Multi By Channel</code></td>
+<td>논리적 경로 순서의 Overlap Hit와 첫 Blocking Hit</td>
+</tr>
+<tr>
+<td><code>Portal Line Trace Multi Detailed By Channel</code></td>
+<td>모든 구간의 상세 Scene Hit와 Portal Event</td>
+</tr>
+</tbody>
+</table>
+<p>공통 기본값은 <code>Ignore Self = true</code>, <code>Max Portal Depth = 4</code>, <code>Portal Exit
+Offset = 2 cm</code>, <code>Draw Time = 5 s</code>, 빨간 Trace, 초록 Hit입니다.</p>
+<p><code>FHitResult.Distance</code>는 포털을 지난 새 구간마다 다시 시작합니다. 최초
+시작점 기준 거리는 <code>FWPPortalTraceHit.LogicalDistance</code>를 사용하세요.
+논리적 거리에는 포털 내부 거리와 <strong>Portal Exit Offset</strong>이 포함되지
+않습니다.</p>
+<h3 id="blueprint">Blueprint 예제</h3>
+<p>카메라 위치를 <strong>Start</strong>, 카메라 Forward Vector에 원하는 거리를 곱해 더한
+값을 <strong>End</strong>로 만들고 <code>Portal Line Trace Detailed By Channel</code>에 연결합니다.
+일반 월드 충돌 채널(예: <code>Visibility</code>)을 사용하고, 반환된
+<code>FWPPortalTraceResult.Status</code>가 <code>Completed</code>인지 확인한 뒤 <code>Scene Hits</code>와
+<code>Portal Events</code>를 처리하세요. <code>WPPortalTrace</code>는 내부 포털 감지 채널이므로
+노드의 Trace Channel로 선택하지 마세요.</p>
+<div class="admonition warning">
+<p class="admonition-title">Portal Exit Offset 동작</p>
+<p>Offset은 출구 포털을 즉시 다시 Hit하는 것을 막습니다. 현재 남은 Trace
+거리에서는 차감되지 않으며, 출구 표면과 Offset이 적용된 Trace 시작점
+사이의 구간은 Collision을 검사하지 않습니다.</p>
+</div>
+<h3 id="trace">Trace 결과 타입</h3>
+<table>
+<thead>
+<tr>
+<th>타입</th>
+<th>주요 필드</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FWPPortalTraceResult</code></td>
+<td><code>Status</code>, <code>bBlockingHit</code>, <code>RequestedDistance</code>, <code>ProcessedDistance</code>, <code>PortalTraversalCount</code>, <code>SceneHits</code>, <code>PortalEvents</code></td>
+</tr>
+<tr>
+<td><code>FWPPortalTraceHit</code></td>
+<td><code>Hit</code>, <code>LogicalDistance</code>, <code>SegmentIndex</code></td>
+</tr>
+<tr>
+<td><code>FWPPortalTracePortalEvent</code></td>
+<td><code>DetectionHit</code>, <code>EntryPortal</code>, <code>ExitPortal</code>, <code>EntryDirection</code>, <code>ExitTraceStart</code>, <code>ExitDirection</code>, <code>LogicalDistance</code>, <code>PortalDepth</code>, <code>Outcome</code></td>
+</tr>
+<tr>
+<td><code>EWPPortalTraceStatus</code></td>
+<td><code>Completed</code>, <code>InvalidInput</code>, <code>MaxPortalDepthReached</code>, <code>PortalTransformFailed</code></td>
+</tr>
+<tr>
+<td><code>EWPPortalTracePortalOutcome</code></td>
+<td><code>Traversed</code>, <code>MaxDepthReached</code>, <code>TransformFailed</code></td>
+</tr>
+</tbody>
+</table>
+<p>C++에는 <code>PortalLineTraceTestByChannel</code>, <code>PortalLineTraceSingleByChannel</code>,
+<code>PortalLineTraceMultiByChannel</code>도 공개되어 있습니다.</p>
+<h2 id="project-settings">Project Settings</h2>
+<p><strong>Edit &gt; Project Settings &gt; Plugins &gt; Wormhole Portal</strong>에서 설정합니다. 값은
+<code>DefaultEngine.ini</code>에 저장됩니다.</p>
+<h3 id="trace-transit">Trace 및 Transit</h3>
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>플러그인 기본값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Portal Trace Channel</strong></td>
+<td><code>ECC_GameTraceChannel1</code></td>
+</tr>
+<tr>
+<td><strong>Portal Trace Channel Name</strong></td>
+<td><code>WPPortalTrace</code></td>
+</tr>
+<tr>
+<td><strong>Plane Tie Angle</strong></td>
+<td><code>1°</code></td>
+</tr>
+<tr>
+<td><strong>Plane Priority</strong></td>
+<td><code>YZ &gt; XZ &gt; XY</code></td>
+</tr>
+<tr>
+<td><strong>Clip Base Index</strong></td>
+<td><code>28</code></td>
+</tr>
+<tr>
+<td><strong>Generated Voxel Asset Path</strong></td>
+<td><code>/WormholePortal/WormholePortal/Generated/Voxels</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Clip Base Index</strong>부터 연속된 네 개의 Custom Primitive Data 값을
+사용하며, <code>MF_WPTransitClip</code>을 사용하는 머티리얼과 같은 값이어야 합니다.</p>
+<p><strong>Generated Voxel Asset Path</strong>는 대소문자를 구분하는 <code>/WormholePortal/</code>
+Prefix를 가진 유효한 Unreal Long Package Directory여야 합니다. 역슬래시와
+끝의 Slash는 검증 전에 정규화됩니다. <code>/Game/...</code> Project Content 경로는
+거부됩니다.</p>
+<h3 id="cubemap">동적 Cubemap 해상도</h3>
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>플러그인 기본값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Lowest Visible Resolution</strong></td>
+<td><code>64</code></td>
+</tr>
+<tr>
+<td><strong>초기 Tier 1 Start / Resolution</strong></td>
+<td><code>30%</code> / <code>128</code></td>
+</tr>
+<tr>
+<td><strong>초기 Tier 2 Start / Resolution</strong></td>
+<td><code>60%</code> / <code>256</code></td>
+</tr>
+<tr>
+<td><strong>초기 Tier 3 Start / Resolution</strong></td>
+<td><code>100%</code> / <code>512</code></td>
+</tr>
+<tr>
+<td><strong>Inside SafeProxy Resolution</strong></td>
+<td><code>768</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Resolution Tiers</strong>는 Project Settings에서 요소를 추가·삭제·재정렬할 수
+있는 배열입니다. 런타임은 Start 값을 <code>0–100%</code>로 제한하고 임시 정책을
+오름차순으로 정렬합니다. 양수 해상도는 다음 8 배수로 올림한 뒤
+<code>8–2048</code> 범위로 제한합니다. 각 Tier는 <strong>Lowest Visible Resolution</strong>부터
+내림차순이 되지 않도록 보정되며, <strong>Inside SafeProxy Resolution</strong>도 Lowest
+값 이상으로 보정됩니다. 배열이 비어 있으면 Safe Proxy 바깥의 모든
+거리에서 Lowest 값을 사용합니다. 위 Tier 값은 새 설정을 초기화할 때의
+코드 기본값이며 프로젝트 Config가 이를 덮어쓸 수 있습니다.</p>
+<p>Cubemap Memory 통계는 진단용이며 실제 해상도 정책은 위 Project Settings에서
+결정됩니다.</p>
+<h3 id="scene-capture-show-flag">Scene Capture Show Flag</h3>
+<p>플러그인 코드에서는 다음 항목이 기본으로 켜져 있습니다.</p>
+<ul>
+<li>Lumen Reflections</li>
+<li>Screen Space Ambient Occlusion</li>
+<li>Volumetric Cloud Bundle</li>
+<li>Dynamic Shadows Bundle</li>
+<li>Sky Lighting Bundle</li>
+<li>Sky Atmosphere Bundle</li>
+<li>Deferred Lighting Bundle</li>
+<li>Lighting Master Bundle</li>
+<li>Fog Master Bundle</li>
+<li>Volumetric Fog</li>
+</ul>
+<p>이 옵션은 관리되는 Cube Capture에만 적용되며 플레이어 Main View에는
+적용되지 않습니다. <strong>Lighting Master Bundle</strong>과 <strong>Fog Master Bundle</strong>은
+각 하위 옵션의 상위 스위치입니다.</p>
+<h3 id="portal-audio">Portal Audio</h3>
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>플러그인 기본값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Enable Portal Audio</strong></td>
+<td>켜짐</td>
+</tr>
+<tr>
+<td><strong>Transmission Gain</strong></td>
+<td><code>1.0</code></td>
+</tr>
+<tr>
+<td><strong>Enable Occlusion</strong></td>
+<td>켜짐</td>
+</tr>
+<tr>
+<td><strong>Occlusion Channel</strong></td>
+<td><code>Visibility</code></td>
+</tr>
+<tr>
+<td><strong>Occlusion Check Interval</strong></td>
+<td><code>0.1 s</code></td>
+</tr>
+<tr>
+<td><strong>Occluded Volume Multiplier</strong></td>
+<td><code>0.35</code></td>
+</tr>
+<tr>
+<td><strong>Occlusion Low-pass Frequency</strong></td>
+<td><code>1200 Hz</code></td>
+</tr>
+<tr>
+<td><strong>Occlusion Surface Bias</strong></td>
+<td><code>2 cm</code></td>
+</tr>
+<tr>
+<td><strong>Source Reconcile Interval</strong></td>
+<td><code>0.25 s</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="portal-source-shadow">Portal Source Shadow</h3>
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>플러그인 기본값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Enable Portal Source Shadows</strong></td>
+<td>켜짐</td>
+</tr>
+<tr>
+<td><strong>Base Resolution</strong></td>
+<td><code>256</code></td>
+</tr>
+<tr>
+<td><strong>Update Rate</strong></td>
+<td><code>30 Hz</code></td>
+</tr>
+<tr>
+<td><strong>Captures Per Frame</strong></td>
+<td><code>2</code></td>
+</tr>
+<tr>
+<td><strong>Active Routes</strong></td>
+<td><code>8</code></td>
+</tr>
+<tr>
+<td><strong>Depth Bias</strong></td>
+<td><code>1 cm</code></td>
+</tr>
+<tr>
+<td><strong>PCF Radius</strong></td>
+<td><code>1 texel</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="lut">LUT</h3>
+<table>
+<thead>
+<tr>
+<th>설정</th>
+<th>플러그인 기본값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Generated LUT Asset Path</strong></td>
+<td><code>/WormholePortal/WormholePortal/Generated/LUT</code></td>
+</tr>
+<tr>
+<td><strong>Impact / Transition / Ratio Samples</strong></td>
+<td><code>512 / 48 / 24</code></td>
+</tr>
+<tr>
+<td><strong>Integration Steps</strong></td>
+<td><code>192</code></td>
+</tr>
+<tr>
+<td><strong>Transition Ratio Domain</strong></td>
+<td><code>0.5–8.0</code></td>
+</tr>
+<tr>
+<td><strong>Tail Flatten Start</strong></td>
+<td><code>0.5</code></td>
+</tr>
+<tr>
+<td><strong>Allow Runtime LUT Fallback</strong></td>
+<td>켜짐</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Generated LUT Asset Path</strong>에도 같은 <code>/WormholePortal/</code> Long Package Directory 규칙이
+적용됩니다. 기본 LUT 및 Voxel 경로는 프로젝트 Content에 생성되며, 설치된
+Plugin Content 경로로 변경할 수 없습니다.</p>
+<h2 id="tag">Tag</h2>
+<table>
+<thead>
+<tr>
+<th>Actor 또는 Component Tag</th>
+<th>효과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Wormhole.Ignore</code></td>
+<td>Actor 또는 Primitive Component를 Transit 판별에서 제외합니다.</td>
+</tr>
+<tr>
+<td><code>WP.PortalAudio.Disabled</code></td>
+<td>Audio Component 또는 소유 Actor를 Portal Audio에서 제외합니다.</td>
+</tr>
+<tr>
+<td><code>WP.PortalLight.Disabled</code></td>
+<td>Light Component 또는 소유 Actor를 Portal Light 수집에서 제외합니다.</td>
+</tr>
+</tbody>
+</table>
+<p><code>WP.PortalAudio.Generated</code>, <code>WP.PortalLight.Generated</code>,
+<code>WormholeGeneratedTransit</code>은 플러그인이 만든 오브젝트를 위한 내부 값이므로
+직접 지정하지 마세요.</p>
+<h2 id="editor">Editor 도구</h2>
+<table>
+<thead>
+<tr>
+<th>위치</th>
+<th>기능</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tools &gt; Wormhole Portal &gt; Transit Manager</strong></td>
+<td>Actor 호환성을 검사하고 <code>Ready</code>, <code>Needs Setup</code>, <code>Not Supported</code>를 표시하며 준비된 Actor에 Transit을 적용합니다.</td>
+</tr>
+<tr>
+<td><strong>Tools &gt; Wormhole Portal &gt; Bake All LUTs</strong></td>
+<td><strong>LUT Bake Settings</strong>를 열고 공용 Volume LUT와 Catalog를 생성합니다.</td>
+</tr>
+<tr>
+<td>Transit Component Details</td>
+<td><strong>Use Voxel Collision</strong>이 켜져 있을 때 <strong>Bake Voxel Body</strong>로 지원 Static Mesh Simple Collision 또는 Box/Sphere/Capsule Shape Component를 복셀 에셋으로 만듭니다.</td>
+</tr>
+<tr>
+<td>Portal Actor Details</td>
+<td>활성 LUT Domain을 표시하고 Metric 입력 범위를 해당 Domain에 맞게 제한합니다.</td>
+</tr>
+<tr>
+<td>시작 알림</td>
+<td><code>WPPortalTrace</code>가 없거나 불일치할 때 <strong>Add Automatically</strong> 및 <strong>Open Collision Settings</strong>를 제공합니다.</td>
+</tr>
+</tbody>
+</table>
+<p>LUT의 Quality 및 Domain Preset은 다음과 같습니다.</p>
+<table>
+<thead>
+<tr>
+<th>Preset 그룹</th>
+<th>옵션</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Quality</strong></td>
+<td><code>Fast (256/24/12/64)</code>, <code>Balanced (512/48/24/192)</code>, <code>High (768/64/32/384)</code>, <code>Cinematic (1024/96/48/768)</code></td>
+</tr>
+<tr>
+<td><strong>Domain</strong></td>
+<td><code>Current Level Auto</code>, <code>Standard (0.5–8)</code>, <code>Wide (0.25–16)</code>, <code>Narrow (1–4)</code></td>
+</tr>
+</tbody>
+</table>
+<p>Quality 숫자는 차례로 Impact Samples, Transition Samples, Ratio Samples,
+Integration Steps입니다.</p>
+<h2 id="integration-examples">연동 예제</h2>
+<h3 id="blueprint_1">Blueprint 패턴</h3>
+<p>런타임에 포털 쌍을 만들 때는 다음 순서를 사용합니다.</p>
+<ol>
+<li><strong>Set Linked Portal</strong>을 호출합니다.</li>
+<li>전체 <code>ρ</code>, <code>a</code>, <code>T</code>를 <strong>Initialize Physical Metric</strong>으로 한 번에
+   초기화합니다.</li>
+<li>Timeline에서 <strong>Set Portal Visual Scale</strong>을 구동해 값싼 열림 효과를
+   만듭니다.</li>
+<li>Collision과 실제 통과 Gate도 함께 커져야 할 때만 <strong>Set Uniform
+   Physical Metric Scale</strong>을 사용합니다.</li>
+</ol>
+<p>Transit은 Components 패널에서 <code>WPTransitComponent</code>를 추가하고 <strong>Transit
+Type: Auto</strong>, <strong>Transit Enabled</strong>로 Compile한 뒤 Transit Manager에서
+검사합니다. Trace는 <strong>Portal Line Trace Detailed By Channel</strong>을 <strong>Break
+WPPortalTraceResult</strong>에 연결하고 <code>Status</code>, <code>Scene Hits</code>, <code>Portal Events</code>와
+논리적 거리를 처리합니다.</p>
+<h3 id="c">C++ 모듈 의존성</h3>
+<p>사용자 모듈의 <code>.Build.cs</code>에 Runtime 모듈을 추가합니다.</p>
+<div class="highlight"><pre><code><span class="n">PublicDependencyModuleNames</span><span class="p">.</span><span class="n">AddRange</span><span class="p">(</span>
+<span class="k">new</span><span class="kt">string</span><span class="p">[]</span>
+<span class="p">{</span>
+<span class="s">&quot;WormholePortalRuntime&quot;</span>
+<span class="p">});</span>
+</code></pre></div>
+<h3 id="_4">포털 쌍 설정과 애니메이션</h3>
+<div class="highlight"><pre><code><span class="cp">#include</span><span class="cpf">&quot;WormholePortalActor.h&quot;</span>
+
+<span class="kt">void</span><span class="nf">ConfigurePortalPair</span><span class="p">(</span>
+<span class="n">AWormholePortalActor</span><span class="o">*</span><span class="n">PortalA</span><span class="p">,</span>
+<span class="n">AWormholePortalActor</span><span class="o">*</span><span class="n">PortalB</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">IsValid</span><span class="p">(</span><span class="n">PortalA</span><span class="p">)</span><span class="o">||</span><span class="o">!</span><span class="n">IsValid</span><span class="p">(</span><span class="n">PortalB</span><span class="p">))</span>
+<span class="p">{</span>
+<span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">PortalA</span><span class="o">-&gt;</span><span class="n">SetLinkedPortal</span><span class="p">(</span><span class="n">PortalB</span><span class="p">);</span>
+<span class="n">PortalA</span><span class="o">-&gt;</span><span class="n">InitializePhysicalMetric</span><span class="p">(</span><span class="mf">75.0f</span><span class="p">,</span><span class="mf">150.0f</span><span class="p">,</span><span class="mf">300.0f</span><span class="p">);</span>
+
+<span class="c1">// 프레임 단위 열림 효과에는 렌더링 크기만 바꿉니다.</span>
+<span class="n">PortalA</span><span class="o">-&gt;</span><span class="n">SetPortalVisualScale</span><span class="p">(</span><span class="mf">0.5f</span><span class="p">);</span>
+
+<span class="c1">// 실제 Gate와 Collision도 커져야 할 때 대신 사용합니다.</span>
+<span class="c1">// PortalA-&gt;SetUniformPhysicalMetricScale(1.25f);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>복제되는 게임플레이 변경은 Authority에서 실행하세요. 세 개의 독립 Metric
+Setter를 Tick마다 호출하지 마세요.</p>
+<h3 id="transit-component_1">기존 Transit Component 새로고침</h3>
+<div class="highlight"><pre><code><span class="cp">#include</span><span class="cpf">&quot;Transit/WPTransitComponent.h&quot;</span>
+
+<span class="k">if</span><span class="p">(</span><span class="n">UWPTransitComponent</span><span class="o">*</span><span class="n">Transit</span><span class="o">=</span>
+<span class="n">Actor</span><span class="o">-&gt;</span><span class="n">FindComponentByClass</span><span class="o">&lt;</span><span class="n">UWPTransitComponent</span><span class="o">&gt;</span><span class="p">())</span>
+<span class="p">{</span>
+<span class="n">Transit</span><span class="o">-&gt;</span><span class="n">SetTransitType</span><span class="p">(</span><span class="n">EWPTransitType</span><span class="o">::</span><span class="n">Auto</span><span class="p">);</span>
+<span class="n">Transit</span><span class="o">-&gt;</span><span class="n">SetTransitEnabled</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
+<span class="n">Transit</span><span class="o">-&gt;</span><span class="n">RefreshFromOwner</span><span class="p">();</span><span class="c1">// Idle 상태에서만 성공합니다.</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="trace_1">포털 인식 Trace 실행</h3>
+<div class="highlight"><pre><code><span class="cp">#include</span><span class="cpf">&quot;Trace/WPTraceLibrary.h&quot;</span>
+
+<span class="n">FWPPortalTraceResult</span><span class="n">Result</span><span class="p">;</span>
+<span class="k">const</span><span class="kt">bool</span><span class="n">bBlockingHit</span><span class="o">=</span><span class="n">UWPTraceLibrary</span><span class="o">::</span><span class="n">PortalLineTraceSingleByChannel</span><span class="p">(</span>
+<span class="n">WorldContextObject</span><span class="p">,</span>
+<span class="n">Result</span><span class="p">,</span>
+<span class="n">Start</span><span class="p">,</span>
+<span class="n">End</span><span class="p">,</span>
+<span class="n">ECC_Visibility</span><span class="p">);</span>
+</code></pre></div>
+<p><code>ECC_Visibility</code>는 이 예제의 일반 Scene Collision Channel입니다.
+<code>WPPortalTrace</code>로 바꾸지 마세요. <code>bBlockingHit</code>은 최종 Scene Blocking Hit의
+존재 여부이며 종료 이유와 전체 경로는 <code>Result</code>에서 확인합니다.</p>
+<h2 id="native">Native 서브시스템</h2>
+<table>
+<thead>
+<tr>
+<th>타입</th>
+<th>범위와 용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UWPRegistrySubsystem</code></td>
+<td>World 단위 포털 및 Pair Registry와 Native 등록·변경·Pair Delegate</td>
+</tr>
+<tr>
+<td><code>UWPTransitSubsystem</code></td>
+<td>서버 권한 Transit Coordinator와 Native Lifecycle Delegate</td>
+</tr>
+<tr>
+<td><code>UWPPortalStreamingSubsystem</code></td>
+<td>World Partition 목적지 요청. 일반 게임플레이는 Portal Actor에서 준비 상태를 읽습니다.</td>
+</tr>
+<tr>
+<td><code>UWPPortalAudioSubsystem</code></td>
+<td>반대편 Audio Route를 생성하며 Blueprint에서 추적 Source와 Proxy 수를 읽을 수 있습니다.</td>
+</tr>
+<tr>
+<td><code>UWPPortalLightCollectionSubsystem</code></td>
+<td>C++ Snapshot을 위해 Point, Spot, Directional Light를 수집합니다.</td>
+</tr>
+<tr>
+<td><code>UWPPortalLightTransmissionSubsystem</code></td>
+<td>Point/Spot Proxy Light와 Source Shadow Route를 생성합니다.</td>
+</tr>
+<tr>
+<td><code>UWPLUTCacheSubsystem</code></td>
+<td>Engine 단위 비동기 Baked/Fallback LUT Cache. 완료 처리는 Game Thread로 돌아옵니다.</td>
+</tr>
+<tr>
+<td><code>IWPRenderer</code></td>
+<td>Pair 등록과 변경 불가능한 Render Packet을 위한 고급 Modular Feature 경계</td>
+</tr>
+</tbody>
+</table>
+<p><code>FWPTransform</code>은 생성, Point/Direction/Rotation Mapping, 역방향 Mapping,
+Exit Mapping, 전체 Transform Mapping을 제공합니다.</p>
+<h2 id="_5">진단</h2>
+<p>다음 명령을 실행합니다.</p>
+<div class="highlight"><pre><code>stat WormholePortal
+</code></pre></div>
+<p>CPU 준비와 제출 시간, 활성 Pair, Cubemap 메모리와 Megapixel, Capture 제출,
+LUT 요청·Cache Hit·Fallback, Render Packet 수, Composite 작업량을
+표시합니다. 실제 GPU 실행 시간은 <code>stat gpu</code> 또는 ProfileGPU에서
+확인하세요.</p>
+<p><strong>Output Log</strong>를 <code>LogWormhole</code>로 필터링합니다. 현재 세션의 로그 상세도를
+높이려면 다음을 실행합니다.</p>
+<div class="highlight"><pre><code>Log LogWormhole Verbose
+</code></pre></div>
+<h3 id="cvar">주요 렌더링 CVar</h3>
+<table>
+<thead>
+<tr>
+<th>CVar</th>
+<th>코드 기본값</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wp.RuntimeEnabled</code></td>
+<td><code>1</code></td>
+<td>Production Render Packet Pipeline의 상위 스위치</td>
+</tr>
+<tr>
+<td><code>wp.SceneViewExtensionEnabled</code></td>
+<td><code>1</code></td>
+<td>Warmup 및 Production Composite의 상위 스위치</td>
+</tr>
+<tr>
+<td><code>wp.SimulateViewEnabled</code></td>
+<td><code>1</code></td>
+<td>SIE Viewport Production Pass 활성화</td>
+</tr>
+<tr>
+<td><code>wp.CaptureSchedulerMode</code></td>
+<td><code>2</code></td>
+<td><code>1</code>: Atomic Pair, <code>2</code>: Staggered Endpoint. <code>0</code>은 <code>1</code>의 Deprecated Alias</td>
+</tr>
+<tr>
+<td><code>wp.CaptureTargetEndpointHz</code></td>
+<td><code>30</code></td>
+<td>보이는 Endpoint 갱신 주기. 실제 런타임 Clamp 범위 <code>5–120 Hz</code></td>
+</tr>
+<tr>
+<td><code>wp.CaptureVisibilityInvisibleHoldSeconds</code></td>
+<td><code>0.5</code></td>
+<td>양쪽이 보이지 않은 뒤 Capture를 멈추기까지의 시간</td>
+</tr>
+<tr>
+<td><code>wp.CaptureVisibilityFeedbackMaxAgeSeconds</code></td>
+<td><code>0.25</code></td>
+<td>GPU Visibility 피드백을 최신으로 인정하는 최대 시간</td>
+</tr>
+<tr>
+<td><code>wp.CaptureOcclusionTraceIntervalSeconds</code></td>
+<td><code>0.1</code></td>
+<td>CPU SafeProxy Occlusion 검사 주기</td>
+</tr>
+<tr>
+<td><code>wp.CaptureResolutionUpgradeHoldSeconds</code></td>
+<td><code>0.75</code></td>
+<td>해상도를 높이기 전 대기 시간</td>
+</tr>
+<tr>
+<td><code>wp.CaptureResolutionDowngradeHoldSeconds</code></td>
+<td><code>0.15</code></td>
+<td>해상도를 낮추기 전 대기 시간</td>
+</tr>
+<tr>
+<td><code>wp.CaptureResolutionMinimumDwellSeconds</code></td>
+<td><code>0.5</code></td>
+<td>완료된 해상도 전환 사이의 최소 간격</td>
+</tr>
+<tr>
+<td><code>wp.CaptureMaxViewDistanceCm</code></td>
+<td><code>-1</code></td>
+<td>양수이면 Capture 거리 제한, <code>&lt;=0</code>이면 제한 없음</td>
+</tr>
+<tr>
+<td><code>wp.CaptureLODDistanceFactor</code></td>
+<td><code>1</code></td>
+<td>Capture LOD 배수. 범위 <code>1–10</code></td>
+</tr>
+<tr>
+<td><code>wp.CaptureFiniteFarPlane</code></td>
+<td><code>0</code></td>
+<td><code>1</code>이면 <code>CaptureMaxViewDistanceCm</code>을 Projection Far Plane에도 적용하는 진단 옵션</td>
+</tr>
+<tr>
+<td><code>wp.CubeAADirectPublish</code></td>
+<td><code>1</code></td>
+<td>지원되는 Direct Publish Cubemap 경로 활성화</td>
+</tr>
+<tr>
+<td><code>wp.CubeLumenParityMode</code></td>
+<td><code>0</code></td>
+<td><code>0</code>: Lumen 없음, <code>1</code>: GI, <code>2</code>: GI 및 Reflection</td>
+</tr>
+<tr>
+<td><code>wp.ViewSummaryInterval</code></td>
+<td><code>5</code></td>
+<td>렌더링 집계 로그 주기(초)</td>
+</tr>
+</tbody>
+</table>
+<p>CVar는 프로파일링과 통제된 오버라이드에 사용하세요. 일반적인 제작 설정은
+Project Settings를 기준으로 하는 것이 좋습니다.</p>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>

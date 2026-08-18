@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'none'; object-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Demo - Wormhole Portal</title>
+  <link rel="stylesheet" href="../stylesheets/offline.css">
+  <link rel="alternate" hreflang="en" href="index.html">
+  <link rel="alternate" hreflang="ko" href="../ko/demo/index.html">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="../index.html">Wormhole Portal</a>
+      <span class="edition">Offline Documentation</span>
+      <nav class="language-menu" aria-label="Language">
+        <a hreflang="en" lang="en" href="index.html">English</a>
+        <a hreflang="ko" lang="ko" href="../ko/demo/index.html">한국어</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <nav class="section-nav" aria-label="Documentation">
+        <p class="section-nav__title">Documentation</p>
+        <div class="section-nav__links">
+          <a href="../index.html">Home</a>
+          <a href="../getting_started/index.html">Getting Started</a>
+          <a href="../features/index.html">Features</a>
+          <a href="index.html" aria-current="page">Demo</a>
+          <a href="../reference.html">Reference</a>
+          <a href="../issues/index.html">Issues</a>
+          <a href="../faq/index.html">FAQ</a>
+          <a href="../support/index.html">Compatibility &amp; Support</a>
+        </div>
+      </nav>
+      <p class="offline-note">This documentation opens locally without a network connection.</p>
+    </aside>
+    <main id="content" class="content" tabindex="-1">
+      <article class="document">
+<h1 id="demo">Demo</h1>
+<p>Wormhole Portal includes a content map and sample gameplay assets for evaluating
+the renderer, transit handlers, portal-aware interactions, and presentation
+helpers before integrating them into a production project.</p>
+<h2 id="open-the-included-demo">Open the included demo</h2>
+<ol>
+<li>Enable Wormhole Portal in <strong>Edit &gt; Plugins</strong> and restart the Editor if
+   requested.</li>
+<li>Open the Content Browser or Content Drawer.</li>
+<li>Open its <strong>Settings</strong> menu and enable <strong>Show Plugin Content</strong>.</li>
+<li>Navigate to <strong>WormholePortal Content &gt; WormholePortal &gt; Demo</strong>.</li>
+<li>Open <code>Lv_WormholePortal_Content_Demo</code>.</li>
+<li>Choose <strong>Play &gt; Selected Viewport</strong>.</li>
+</ol>
+<p>The package path is:</p>
+<div class="highlight"><pre><code>/WormholePortal/WormholePortal/Demo/Lv_WormholePortal_Content_Demo
+</code></pre></div>
+<p><code>Lv_WormholePortal_Content_Demo</code> is the documented customer-facing entry map.
+Do not base evaluation steps on <code>Dev_Demo</code>, which is not the documented entry
+point.</p>
+<h2 id="what-the-map-demonstrates">What the map demonstrates</h2>
+<p>Follow the map in order; a later area may remain locked until the preceding
+stage's condition is complete.</p>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>What to verify</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stage 0</td>
+<td>Basic controls, documentation/support links, and linked-portal creation with the Portal Gun</td>
+</tr>
+<tr>
+<td>Stage 1</td>
+<td>Character and general Actor transit, portal links, and physical metric behavior</td>
+</tr>
+<tr>
+<td>Stage 2</td>
+<td>Partial crossing of long meshes, Material Clip, Voxel Collision, and advanced transit setup</td>
+</tr>
+<tr>
+<td>Stage 3</td>
+<td>Portal-aware line traces and the public Blueprint/C++ API examples</td>
+</tr>
+<tr>
+<td>Stage 4</td>
+<td>Spatial audio and Point/Spot light transmission through a portal</td>
+</tr>
+</tbody>
+</table>
+<p>Inspect Actors while they straddle the boundary, their exit velocity and
+direction, and the logical hit order of portal-aware traces—not only the
+rendered destination view.</p>
+<p>Run in the supported Win64 DirectX 12 SM6 environment and use a primary
+Perspective Game View. The portal composite does not appear in Scene Capture,
+orthographic, stereo/VR, or split-screen views.</p>
+<h2 id="inspect-the-examples">Inspect the examples</h2>
+<table>
+<thead>
+<tr>
+<th>Example</th>
+<th>Content Browser path or class</th>
+<th>What to study</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Demo map</td>
+<td><code>/WormholePortal/WormholePortal/Demo/Lv_WormholePortal_Content_Demo</code></td>
+<td>Portal placement, pair configuration, and complete test scenarios</td>
+</tr>
+<tr>
+<td>First-person Character</td>
+<td><code>/WormholePortal/WormholePortal/Demo/FirstPerson/Blueprints/BP_FirstPersonCharacter</code></td>
+<td>Character transit component and movement setup</td>
+</tr>
+<tr>
+<td>Portal gun</td>
+<td><code>/WormholePortal/WormholePortal/Demo/Variant_Shooter/Blueprints/Pickups/Weapons/BP_ShooterWeapon_PortalGun</code></td>
+<td>A gameplay-facing portal placement example</td>
+</tr>
+<tr>
+<td>Physics cube</td>
+<td><code>BP_PhysicsCube</code></td>
+<td>Simulated Physics transit setup</td>
+</tr>
+<tr>
+<td>Projectile cube</td>
+<td><code>BP_ProjectileCube</code></td>
+<td>Projectile transit setup</td>
+</tr>
+<tr>
+<td>Long mesh</td>
+<td><code>BP_LongMesh</code></td>
+<td>Boundary crossing and fit/collision behavior</td>
+</tr>
+<tr>
+<td>Actor spawner</td>
+<td><code>BP_SActorSpawner</code></td>
+<td>Repeatable sample-Actor spawning</td>
+</tr>
+<tr>
+<td>Clip material</td>
+<td><code>/WormholePortal/WormholePortal/Demo/Materials/M_VisualClip</code></td>
+<td>Integration of the transit clip material function</td>
+</tr>
+<tr>
+<td>Clip material function</td>
+<td><code>/WormholePortal/WormholePortal/Materials/MaterialFunctions/MF_WPTransitClip</code></td>
+<td>Runtime material function used by Material Clip-compatible materials</td>
+</tr>
+<tr>
+<td>Translucent material</td>
+<td><code>/WormholePortal/WormholePortal/Demo/Materials/M_Translucent</code></td>
+<td>Portal-scene material behavior to evaluate in context</td>
+</tr>
+<tr>
+<td>Bundled and generated assets</td>
+<td><code>/WormholePortal/WormholePortal/Generated</code></td>
+<td>Voxel data used by the demo and LUT assets used by the runtime catalog</td>
+</tr>
+</tbody>
+</table>
+<p><code>/WormholePortal/WormholePortal/Generated</code> is the plugin's generated-data root.
+The included demo references the bundled Voxel data there. Unless a Portal has
+<strong>LUT Asset Override</strong>, the runtime searches the configured catalog, which
+defaults to
+<code>/WormholePortal/WormholePortal/Generated/LUT/DA_WPLUTCatalog</code>. If no compatible
+baked LUT is found and <strong>Allow Runtime LUT Fallback</strong> is enabled, compatible
+transient data is generated asynchronously. New LUT and Voxel bakes default to
+the <code>LUT</code> and <code>Voxels</code> subdirectories under this Plugin Content path. Keep the
+plugin directory writable while baking.</p>
+<p>The sample C++ module also contains focused reference implementations:</p>
+<ul>
+<li><code>UWPPortalGunComponent</code>;</li>
+<li><code>UWPGrabComponent</code>;</li>
+<li><code>AWPSampleActorSpawner</code>;</li>
+<li><code>AWPTransitBomb</code>;</li>
+<li><code>AWPSampleTurret</code>;</li>
+<li><code>AWPDemoRoom</code>; and</li>
+<li><code>AWPDemoRoomManager</code>.</li>
+</ul>
+<p>Use <a href="../reference.html#integration-examples">Reference</a> for the supported runtime
+module dependency and minimal integration patterns.</p>
+<h2 id="input-and-included-dependencies">Input and included dependencies</h2>
+<p>The sample uses Enhanced Input assets under
+<code>/WormholePortal/WormholePortal/Demo/Input</code> and
+<code>/WormholePortal/WormholePortal/Demo/Variant_Shooter/Input</code>. The bindings below were verified
+directly from the shipped Mapping Contexts in UE 5.8:</p>
+<table>
+<thead>
+<tr>
+<th>Mapping Context</th>
+<th>Input Action</th>
+<th>Keyboard / mouse</th>
+<th>Gamepad</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IMC_Default</code></td>
+<td><code>IA_Jump</code></td>
+<td><code>Space Bar</code></td>
+<td>Face Button Bottom</td>
+</tr>
+<tr>
+<td><code>IMC_Default</code></td>
+<td><code>IA_Move</code></td>
+<td><code>W</code>, <code>A</code>, <code>S</code>, <code>D</code>; Arrow Keys</td>
+<td>Left Stick 2D</td>
+</tr>
+<tr>
+<td><code>IMC_Default</code></td>
+<td><code>IA_Look</code></td>
+<td>—</td>
+<td>Right Stick 2D</td>
+</tr>
+<tr>
+<td><code>IMC_MouseLook</code></td>
+<td><code>IA_MouseLook</code></td>
+<td>Mouse 2D</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>IMC_Weapons</code></td>
+<td><code>IA_SwapWeapon</code></td>
+<td>Left Shift</td>
+<td>Face Button Top</td>
+</tr>
+<tr>
+<td><code>IMC_Weapons</code></td>
+<td><code>IA_Shoot</code></td>
+<td>Left Mouse Button</td>
+<td>Right Trigger Axis; Right Shoulder</td>
+</tr>
+<tr>
+<td><code>IMC_Weapons</code></td>
+<td><code>IA_FirePortalB</code></td>
+<td>Right Mouse Button</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>IMC_Weapons</code></td>
+<td><code>IA_PortalDir</code></td>
+<td>Mouse Wheel Axis</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>IMC_Weapons</code></td>
+<td><code>IA_Grab</code></td>
+<td>Left Shift</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>If you remap the sample, treat the supplied Mapping Contexts and the in-map
+prompts as the authoritative runtime state rather than assuming a fixed layout.</p>
+<p>The plugin descriptor enables these Unreal plugins:</p>
+<ul>
+<li><strong>Enhanced Input</strong>;</li>
+<li><strong>StateTree</strong>; and</li>
+<li><strong>Gameplay StateTree</strong>.</li>
+</ul>
+<p>Enhanced Input is used by the sample controls. The included shooter variant
+contains StateTree-based AI content, so keep the descriptor dependencies enabled
+when evaluating the complete demo.</p>
+<h2 id="reuse-demo-content-safely">Reuse demo content safely</h2>
+<p>Treat the demo as an example and test fixture, not as an application framework.</p>
+<ol>
+<li>Duplicate the Blueprint or asset you intend to adapt into your project's own
+   <code>/Game/...</code> content folder.</li>
+<li>Preserve references to Wormhole Portal runtime types, material functions,
+   and generated data that the copy still needs.</li>
+<li>Replace sample-specific input, GameMode, UI, and AI assumptions with the
+   equivalents from your project.</li>
+<li>Re-run Transit Manager on copied Actors.</li>
+<li>Re-bake Voxel data after collision changes and bake LUT data for the metric
+   domain used by the destination level.</li>
+<li>Test the copy in PIE, Standalone, and a packaged build.</li>
+</ol>
+<p>Do not edit installed plugin sample assets as the only copy of production work;
+a plugin update can replace them. For C++, depend on <code>WormholePortalRuntime</code>
+from your own module and adapt the sample logic instead of making gameplay code
+depend indefinitely on the sample module.</p>
+<h2 id="demo-troubleshooting">Demo troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>What to check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The <code>WormholePortal Content</code> folder is missing</td>
+<td>Enable <strong>Show Plugin Content</strong> in Content Browser Settings.</td>
+</tr>
+<tr>
+<td>The map or assets show missing dependencies</td>
+<td>Confirm Enhanced Input, StateTree, and Gameplay StateTree are enabled, then restart the Editor.</td>
+</tr>
+<tr>
+<td>The portal is absent in the viewport</td>
+<td>Use the documented map and a primary Perspective Game View in Win64 DX12 SM6; confirm the linked pair and LUT are valid.</td>
+</tr>
+<tr>
+<td>An Actor does not cross</td>
+<td>Run Transit Manager and resolve the exact setup status. For Physics, verify a supported body is simulating.</td>
+</tr>
+<tr>
+<td>Voxel Collision reports missing data</td>
+<td>Enable <strong>Use Voxel Collision</strong> and bake each reported supported Primitive.</td>
+</tr>
+<tr>
+<td>Packaged output cannot find LUT data</td>
+<td>Verify <code>/WormholePortal/WormholePortal/Generated/LUT</code> under <strong>Additional Asset Directories to Cook</strong>.</td>
+</tr>
+</tbody>
+</table>
+<p>For deeper diagnosis, continue with <a href="../issues/index.html">Issues</a> and include the
+<a href="../support/index.html#before-requesting-support">support checklist</a> with any report.</p>
+      </article>
+      <footer class="site-footer">Copyright &copy; 2026 Team Beaver Studio</footer>
+    </main>
+  </div>
+</body>
+</html>
