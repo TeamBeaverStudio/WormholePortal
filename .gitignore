@@ -1,6 +1,13 @@
 # Visual Studio 2015 user specific files
 .vs/
 
+# AI Agents
+.claude/
+CLAUDE.md
+
+.codex/
+AGENTS.md
+
 # Compiled Object files
 *.slo
 *.lo
