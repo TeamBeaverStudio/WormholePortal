@@ -1,9 +1,13 @@
 // Copyright 2026 Team Beaver. All Rights Reserved.
-//
-// Authoritative material-agnostic ray evaluation used by the
-// SceneViewExtension production composite shader.
-// Keep carrier coverage, SceneDepth and output projection in their wrappers;
-// optical branch selection, LUT addressing and bending belong only here.
+
+/**
+ * @brief Provides shared ray evaluation code for the SceneViewExtension
+ *        composite shader.
+ *
+ * Proxy coverage, SceneDepth, and screen projection are handled by the caller.
+ * This code handles optical branch selection, LUT coordinate calculation, and
+ * ray refraction.
+ */
 
 #ifndef WP_RAY_COMMON_USH
 #define WP_RAY_COMMON_USH
@@ -12,20 +16,14 @@ struct FWPRayResult
 {
     float3 BentDirection;
     float3 LinkedDirection;
-    float AnalyticProxyDistance;
-    float CameraRadius;
     float CameraInsideProxy;
-    float CameraInsideCarrier;
-    float Impact;
-    float CriticalImpact;
     float InsideOutward;
-    float RemoteBranch;
     float TrappedCritical;
     float UseOtherUniverse;
+    float Impact;
+    float CriticalImpact;
     float BendAngle;
     float PhaseGradientScale;
-    float GlobalLUTValidityBits;
-    float BranchLUTValidityBits;
     float Valid;
 };
 
@@ -45,8 +43,8 @@ float3 WPCenteredLUTUVW(Texture3D LUTTexture, float3 LogicalUVW)
     LUTTexture.GetDimensions(LUTWidth, LUTHeight, LUTDepth);
 
     const float3 LUTSize = max(
-        float3((float)LUTWidth, (float)LUTHeight, (float)LUTDepth), 1.0f.xxx);
-    return (saturate(LogicalUVW) * max(LUTSize - 1.0f.xxx, 0.0f.xxx) + 0.5f.xxx) / LUTSize;
+        float3((float)LUTWidth, (float)LUTHeight, (float)LUTDepth), (1.0f).xxx);
+    return (saturate(LogicalUVW) * max(LUTSize - (1.0f).xxx, (0.0f).xxx) + (0.5f).xxx) / LUTSize;
 }
 
 float WPRaisedCosineU(float Impact01)
@@ -55,6 +53,15 @@ float WPRaisedCosineU(float Impact01)
         * 0.31830988618379067154f;
 }
 
+/**
+ * @brief Evaluates the world-space ray of a screen pixel using the DNEG metric.
+ *
+ * Evaluation steps:
+ *  1) Compute the camera relationship and ray intersection with the outer proxy.
+ *  2) Determine the 3D LUT coordinates from the impact and initial proper distance.
+ *  3) Combine the local, remote, and critical branches with the analytic throat solution.
+ *  4) Return the refracted direction, linked-portal direction, and cubemap gradient scale.
+ */
 FWPRayResult WPEvaluateRay(
     Texture3D LUTTexture,
     SamplerState LUTTextureSampler,
@@ -80,20 +87,14 @@ FWPRayResult WPEvaluateRay(
     FWPRayResult Result;
     Result.BentDirection = WPSafeNormalize(RayWS, float3(0.0f, 0.0f, 1.0f));
     Result.LinkedDirection = Result.BentDirection;
-    Result.AnalyticProxyDistance = 0.0f;
-    Result.CameraRadius = 0.0f;
     Result.CameraInsideProxy = 0.0f;
-    Result.CameraInsideCarrier = 0.0f;
-    Result.Impact = 0.0f;
-    Result.CriticalImpact = 0.0f;
     Result.InsideOutward = 0.0f;
-    Result.RemoteBranch = 0.0f;
     Result.TrappedCritical = 0.0f;
     Result.UseOtherUniverse = 0.0f;
+    Result.Impact = 0.0f;
+    Result.CriticalImpact = 0.0f;
     Result.BendAngle = 0.0f;
     Result.PhaseGradientScale = 1.0f;
-    Result.GlobalLUTValidityBits = 0.0f;
-    Result.BranchLUTValidityBits = 0.0f;
     Result.Valid = 0.0f;
 
     RayWS = WPSafeNormalize(RayWS, float3(0.0f, 0.0f, 1.0f));
@@ -106,11 +107,7 @@ FWPRayResult WPEvaluateRay(
 
     const float CameraRadius = length(CameraOffsetWS);
     const float InsideProxy = (CameraRadius < SafeProxyRadius) ? 1.0f : 0.0f;
-    const float SafeCarrierRadius = SafeProxyRadius * 1.05f;
-    const float InsideCarrier = (CameraRadius < SafeCarrierRadius) ? 1.0f : 0.0f;
-    Result.CameraRadius = CameraRadius;
     Result.CameraInsideProxy = InsideProxy;
-    Result.CameraInsideCarrier = InsideCarrier;
 
     const float ProjectedCenter = dot(CameraOffsetWS, RayWS);
     const float SphereDiscriminant = ProjectedCenter * ProjectedCenter
@@ -130,7 +127,6 @@ FWPRayResult WPEvaluateRay(
     {
         return Result;
     }
-    Result.AnalyticProxyDistance = AnalyticProxyDistance;
 
     const float3 AnalyticSurfaceOffsetWS = CameraOffsetWS + RayWS * AnalyticProxyDistance;
     const float3 SurfaceRadialWS = WPSafeNormalize(
@@ -151,16 +147,11 @@ FWPRayResult WPEvaluateRay(
     const float CameraProperEll01 = saturate((CameraRadius - SafeThroatRadius) / OuterProperEll);
     const float RayStartEll01 = lerp(1.0f, CameraProperEll01, InsideProxy);
     const float StartProperEll = RayStartEll01 * OuterProperEll;
-    // LUT Y is baked as transition-only proper distance. Using the full
-    // throat-to-outer coordinate here shifts every inside-proxy lookup whenever
-    // the constant-radius throat has non-zero length.
+
     const float RayStartTransition01 = saturate(
         (StartProperEll - MouthProperEll) / TransitionProperLength);
     const float InsideOutward = InsideProxy * ((IncidenceCos >= 0.0f) ? 1.0f : 0.0f);
 
-    // T==0 has no variable-radius transition. The default encodes the exact
-    // constant-radius throat solution (critical impact 1, zero residual bend,
-    // both validity bits) and the branch avoids every texture dimension/sample op.
     float4 GlobalLUTSample = float4(0.0f, 0.0f, 1.0f, 3.0f);
     [branch]
     if (LUTEnabled > 0.5f)
@@ -208,7 +199,7 @@ FWPRayResult WPEvaluateRay(
         uint LUTHeight = 1;
         uint LUTDepth = 1;
         LUTTexture.GetDimensions(LUTWidth, LUTHeight, LUTDepth);
-        const float2 LUTSize = max(float2((float)LUTWidth, (float)LUTHeight), 1.0f.xx);
+        const float2 LUTSize = max(float2((float)LUTWidth, (float)LUTHeight), (1.0f).xx);
         const float HalfImpactSamples = floor(0.5f * LUTSize.x);
         const float ImpactIndexDenominator = max(LUTSize.x - 1.0f, 1.0f);
         const float RemoteMaxLogicalU = max(HalfImpactSamples - 1.0f, 0.0f)
@@ -228,8 +219,6 @@ FWPRayResult WPEvaluateRay(
             0.0f);
     }
 
-    // Alpha packs branch validity (+1 inward, +2 outward). Invalid tangent or
-    // separatrix samples are trapped/black, never a valid zero-angle ray.
     const int GlobalValidity = (int)floor(GlobalLUTSample.a + 0.5f);
     const int InwardValidity = (int)floor(InwardLUTSample.a + 0.5f);
     const float OutwardLUTValid = ((GlobalValidity & 2) != 0) ? 1.0f : 0.0f;
@@ -281,19 +270,7 @@ FWPRayResult WPEvaluateRay(
         BendCos * RadialWS + BendSin * TangentDirection,
         RayWS);
 
-    const float2 UnwrappedPhaseDerivative = float2(ddx(BendAngle), ddy(BendAngle));
-    const float PhaseDerivativeFinite = all(isfinite(UnwrappedPhaseDerivative)) ? 1.0f : 0.0f;
-    const float UnwrappedPhaseFootprint = (PhaseDerivativeFinite > 0.5f)
-        ? max(abs(UnwrappedPhaseDerivative.x), abs(UnwrappedPhaseDerivative.y))
-        : 65536.0f;
-    const float WrappedDirectionFootprint = max(length(ddx(BentWS)), length(ddy(BentWS)));
-    const float PhaseFilterStart = 0.75f;
-    const float PhaseGradientScale = (UnwrappedPhaseFootprint > PhaseFilterStart)
-        ? clamp(
-            UnwrappedPhaseFootprint / max(WrappedDirectionFootprint, 1.0e-4f),
-            1.0f,
-            65536.0f)
-        : 1.0f;
+    const float PhaseGradientScale = 1.0f;
 
     const float3 SelfXAxis = WPSafeNormalize(SelfX, float3(1.0f, 0.0f, 0.0f));
     const float3 SelfYAxis = WPSafeNormalize(SelfY, float3(0.0f, 1.0f, 0.0f));
@@ -350,19 +327,17 @@ FWPRayResult WPEvaluateRay(
         return Result;
     }
 
+    Result.InsideOutward = InsideOutward;
     Result.BentDirection = BentWS;
     Result.LinkedDirection = LinkedWS;
     Result.Impact = Impact;
     Result.CriticalImpact = CriticalImpact;
-    Result.InsideOutward = InsideOutward;
-    Result.RemoteBranch = RemoteBranch;
     Result.TrappedCritical = TrappedCritical;
     Result.UseOtherUniverse = UseOtherUniverse;
     Result.BendAngle = BendAngle;
     Result.PhaseGradientScale = PhaseGradientScale;
-    Result.GlobalLUTValidityBits = GlobalLUTSample.a;
-    Result.BranchLUTValidityBits = InwardLUTSample.a;
     Result.Valid = 1.0f;
+
     return Result;
 }
 

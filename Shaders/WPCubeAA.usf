@@ -1,5 +1,13 @@
 // Copyright 2026 Team Beaver. All Rights Reserved.
 
+/**
+ * @brief Implements a wormhole-specific spatial anti-aliasing compute shader
+ *        for all six cubemap faces.
+ *
+ * This shader does not use Unreal Engine's built-in FXAA. It applies a
+ * simplified FXAA-style directional edge filter optimized for linear HDR RGB.
+ */
+
 #include "/Engine/Public/Platform.ush"
 
 Texture2DArray<float4> InputCubeFaces;
@@ -13,13 +21,9 @@ float EdgeThresholdMin;
 float SpanMax;
 float ReduceMul;
 float ReduceMin;
-uint FaceMask;
 
 float WPCubeAALuma(float3 LinearHDR)
 {
-    // FXAA thresholds are normally evaluated after tonemapping. Use a
-    // scene-referred logarithmic luminance only for edge detection so the
-    // decision remains stable in linear HDR; RGB filtering stays linear.
     const float Luminance = dot(
         max(LinearHDR, 0.0f),
         float3(0.2126f, 0.7152f, 0.0722f));
@@ -39,26 +43,17 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
     const uint2 Pixel = DispatchThreadId.xy;
     const uint FaceIndex = DispatchThreadId.z;
+    
     if (Pixel.x >= (uint)CubeExtent.x
         || Pixel.y >= (uint)CubeExtent.y
         || FaceIndex >= 6u)
     {
         return;
     }
-
+    
     const float2 UV = ((float2)Pixel + 0.5f) * CubeInvExtent;
     const float4 Center = WPCubeAASample(UV, FaceIndex);
-
-    // Unselected slices already contain the previous completed AA result. Copy them unchanged
-    // into the alternate physical cube so direct publication never double-filters stale faces.
-    if ((FaceMask & (1u << FaceIndex)) == 0u)
-    {
-        OutputCubeFaces[uint3(Pixel, FaceIndex)] = Center;
-        return;
-    }
-
-    // Keep the one-texel face border untouched. Face-local FXAA must not blend
-    // clamped samples into another cube face and create a new seam.
+    
     if (Pixel.x == 0u
         || Pixel.y == 0u
         || Pixel.x + 1u >= (uint)CubeExtent.x
@@ -67,13 +62,13 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
         OutputCubeFaces[uint3(Pixel, FaceIndex)] = Center;
         return;
     }
-
+    
     const float2 Texel = CubeInvExtent;
     const float4 NorthWest = WPCubeAASample(UV + float2(-Texel.x, -Texel.y), FaceIndex);
     const float4 NorthEast = WPCubeAASample(UV + float2( Texel.x, -Texel.y), FaceIndex);
     const float4 SouthWest = WPCubeAASample(UV + float2(-Texel.x,  Texel.y), FaceIndex);
     const float4 SouthEast = WPCubeAASample(UV + float2( Texel.x,  Texel.y), FaceIndex);
-
+    
     const float LumaCenter = WPCubeAALuma(Center.rgb);
     const float LumaNorthWest = WPCubeAALuma(NorthWest.rgb);
     const float LumaNorthEast = WPCubeAALuma(NorthEast.rgb);
@@ -91,54 +86,35 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
             max(LumaNorthWest, LumaNorthEast),
             max(LumaSouthWest, LumaSouthEast)));
     const float LumaRange = LumaMax - LumaMin;
+
     if (LumaRange < max(EdgeThresholdMin, LumaMax * EdgeThreshold))
     {
         OutputCubeFaces[uint3(Pixel, FaceIndex)] = Center;
         return;
     }
-
+    
     float2 Direction;
-    Direction.x = -(
-        (LumaNorthWest + LumaNorthEast)
-        - (LumaSouthWest + LumaSouthEast));
-    Direction.y =
-        (LumaNorthWest + LumaSouthWest)
-        - (LumaNorthEast + LumaSouthEast);
-
+    Direction.x = -((LumaNorthWest + LumaNorthEast) - (LumaSouthWest + LumaSouthEast));
+    Direction.y = (LumaNorthWest + LumaSouthWest) - (LumaNorthEast + LumaSouthEast);
+    
     const float DirectionReduce = max(
-        (LumaNorthWest + LumaNorthEast + LumaSouthWest + LumaSouthEast)
-            * (0.25f * ReduceMul),
+        (LumaNorthWest + LumaNorthEast + LumaSouthWest + LumaSouthEast) * (0.25f * ReduceMul), 
         ReduceMin);
-    const float ReciprocalDirectionMin =
+    const float ReciprocalDirectionMin = 
         rcp(min(abs(Direction.x), abs(Direction.y)) + DirectionReduce);
-    Direction = clamp(
-        Direction * ReciprocalDirectionMin,
-        -SpanMax,
-        SpanMax) * Texel;
-
+    
+    Direction = clamp(Direction * ReciprocalDirectionMin, -SpanMax, SpanMax) * Texel;
+    
     const float3 RGB_A = 0.5f * (
-        WPCubeAASample(
-            UV + Direction * (1.0f / 3.0f - 0.5f),
-            FaceIndex).rgb
-        + WPCubeAASample(
-            UV + Direction * (2.0f / 3.0f - 0.5f),
-            FaceIndex).rgb);
-    const float3 RGB_B =
-        RGB_A * 0.5f
-        + 0.25f * (
-            WPCubeAASample(
-                UV + Direction * -0.5f,
-                FaceIndex).rgb
-            + WPCubeAASample(
-                UV + Direction * 0.5f,
-                FaceIndex).rgb);
+        WPCubeAASample(UV + Direction * (1.0f / 3.0f - 0.5f), FaceIndex).rgb
+        + WPCubeAASample(UV + Direction * (2.0f / 3.0f - 0.5f), FaceIndex).rgb);
 
+    const float3 RGB_B = RGB_A * 0.5f + 0.25f * (
+        WPCubeAASample(UV + Direction * -0.5f, FaceIndex).rgb
+        + WPCubeAASample(UV + Direction * 0.5f, FaceIndex).rgb);
+    
     const float LumaB = WPCubeAALuma(RGB_B);
-    const float3 FilteredRGB =
-        (LumaB < LumaMin || LumaB > LumaMax) ? RGB_A : RGB_B;
-
-    // Alpha is not part of the wormhole color contract. Preserve the capture
-    // value nevertheless so this pass changes RGB edge coverage only.
-    OutputCubeFaces[uint3(Pixel, FaceIndex)] =
-        float4(FilteredRGB, Center.a);
+    const float3 FilteredRGB = (LumaB < LumaMin || LumaB > LumaMax) ? RGB_A : RGB_B;
+    
+    OutputCubeFaces[uint3(Pixel, FaceIndex)] = float4(FilteredRGB, Center.a);
 }

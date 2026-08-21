@@ -3,6 +3,7 @@
 #include "Passes/WPCompositePass.h"
 
 #include "DataDrivenShaderPlatformInfo.h"
+#include "HAL/IConsoleManager.h"
 #include "GlobalShader.h"
 #include "GlobalRenderResources.h"
 #include "Math/WPPortalVisibilityMath.h"
@@ -25,6 +26,15 @@ DECLARE_GPU_STAT_NAMED(WPProductionComposite, TEXT("WP.ProductionComposite"));
 
 namespace
 {
+	TAutoConsoleVariable<int32> CVarWPDNEGFilterDebug(
+		TEXT("wp.DNEG.FilterDebug"),
+		0,
+		TEXT("Visualizes DNEG phase filtering and optical branch coverage.\n")
+		TEXT(" 0: Off\n")
+		TEXT(" 1: Yellow=4-tap, Orange=8-tap, Cyan=C2 branch, ")
+		TEXT("Red=C2 critical"),
+		ECVF_RenderThreadSafe);
+
 	class FWPCompositePS final : public FGlobalShader
 	{
 	public:
@@ -68,6 +78,7 @@ namespace
 			SHADER_PARAMETER(float, ProxyRadiusCm)
 			SHADER_PARAMETER(float, MetricOuterRadiusCm)
 			SHADER_PARAMETER(float, DepthBiasCm)
+			SHADER_PARAMETER(int32, FilterDebugMode)
 			SHADER_PARAMETER(FVector3f, SelfX)
 			SHADER_PARAMETER(FVector3f, SelfY)
 			SHADER_PARAMETER(FVector3f, SelfZ)
@@ -680,6 +691,7 @@ FScreenPassTexture AddWPCompositePass(
 	PassParameters->ProxyRadiusCm = Parameters.ProxyRadiusCm;
 	PassParameters->MetricOuterRadiusCm = Parameters.MetricOuterRadiusCm;
 	PassParameters->DepthBiasCm = Parameters.DepthBiasCm;
+	PassParameters->FilterDebugMode = CVarWPDNEGFilterDebug.GetValueOnRenderThread();
 	PassParameters->SelfX = Parameters.SelfX;
 	PassParameters->SelfY = Parameters.SelfY;
 	PassParameters->SelfZ = Parameters.SelfZ;
