@@ -52,9 +52,9 @@ bool FWPVoxelBaker::Bake(UWPTransitComponent* TransitComp, FText& OutMessage)
 		return false;
 	}
 	
-	if (TransitComp->VoxelSize <= KINDA_SMALL_NUMBER || TransitComp->MaxVoxelCount < 1 || TransitComp->MaxVoxelCount > 512)
+	if (TransitComp->VoxelSize <= KINDA_SMALL_NUMBER || TransitComp->MaxVoxelCount < 1)
 	{
-		OutMessage = LOCTEXT("Invalid Settings", "Voxel Size is bigger than 0, MaxVoxel Count range is 1 to 512");
+		OutMessage = LOCTEXT("Invalid Settings", "Voxel Size is bigger than 0");
 		return false;
 	}
 	

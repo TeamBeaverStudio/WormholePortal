@@ -115,13 +115,24 @@ void FWPVoxel::Reset(FWPTransitRun& Run)
 
 void FWPVoxel::Update(FWPTransitRun& Run, const FVector& SourceSurface, const FVector& SourceNormal, const FVector& DestSurface, const FVector& DestNormal)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FWPVoxel::Update);
+	
 	for (FWPVoxelPair& Pair : Run.VoxelPairs)
 	{
 		const UWPVoxelData* VoxelData = Pair.VoxelData.Get();
 		if (!Pair.bUsingVoxelBody || !IsValid(VoxelData)) continue;
 		
-		UpdatePrimitive(Pair.Master, VoxelData->VoxelCenters, SourceSurface, SourceNormal, Pair.MasterState);
-		UpdatePrimitive(Pair.Twin, VoxelData->VoxelCenters, DestSurface, DestNormal, Pair.TwinState);
+		const int32 VoxelCount = Pair.VoxelData->VoxelCenters.Num();
+		
+		// Master + Twin Voxel Count
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::UpdateMaster);
+			UpdatePrimitive(Pair.Master, VoxelData->VoxelCenters, SourceSurface, SourceNormal, Pair.MasterState);
+		}
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::UpdateTwin);
+			UpdatePrimitive(Pair.Twin, VoxelData->VoxelCenters, DestSurface, DestNormal, Pair.TwinState);
+		}
 	}
 }
 
@@ -159,7 +170,6 @@ void FWPVoxel::DrawDebug(UWorld* World, const FWPTransitRun& Run)
 		{
 			DrawVoxel(Pair.Master, VoxelData, Pair.MasterState);
 			DrawVoxel(Pair.Twin, VoxelData, Pair.TwinState);
-			continue;
 		}
 	}
 }
@@ -293,6 +303,8 @@ void FWPVoxel::ResetPair(FWPVoxelPair& Pair)
 
 void FWPVoxel::UpdatePrimitive(UPrimitiveComponent* Comp, const TArray<FVector>& Centers, const FVector& Surface, const FVector& Normal, TArray<uint8>& InOutState)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FWPVoxel::UpdatePrimitive);
+	
 	FBodyInstance* Body = IsValid(Comp) ? Comp->GetBodyInstance() : nullptr;
 	if (Body == nullptr || !Body->IsValidBodyInstance() || Centers.Num() != InOutState.Num()) return;
 	
@@ -303,18 +315,27 @@ void FWPVoxel::UpdatePrimitive(UPrimitiveComponent* Comp, const TArray<FVector>&
 	const ECollisionEnabled::Type ActiveCollision = Comp->GetCollisionEnabled();
 	bool bFilterChanged = false;
 	
-	for (int32 VoxelIndex = 0; VoxelIndex < Centers.Num();++VoxelIndex)
 	{
-		const FVector WorldCenter = CompTransform.TransformPosition(Centers[VoxelIndex]);
-		const bool bActive = FVector::DotProduct(WorldCenter - Surface, SafeNormal) > 0.0f;
-		if (InOutState[VoxelIndex] == static_cast<uint8>(bActive)) continue;
+		TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::ClassifyVoxelShapes);
 		
-		// 숨은 shape만 끄고, 다시 보이는 shape는 component의 원리 query, physics 방식 사용
-		Body->SetShapeCollisionEnabled(VoxelIndex, bActive ? ActiveCollision  : ECollisionEnabled::NoCollision, false);
+		for (int32 VoxelIndex = 0; VoxelIndex < Centers.Num();++VoxelIndex)
+		{
+			const FVector WorldCenter = CompTransform.TransformPosition(Centers[VoxelIndex]);
+			const bool bActive = FVector::DotProduct(WorldCenter - Surface, SafeNormal) > 0.0f;
+			if (InOutState[VoxelIndex] == static_cast<uint8>(bActive)) continue;
 		
-		InOutState[VoxelIndex] = static_cast<uint8>(bActive);
-		bFilterChanged = true;
+			// 숨은 shape만 끄고, 다시 보이는 shape는 component의 원리 query, physics 방식 사용
+			Body->SetShapeCollisionEnabled(VoxelIndex, bActive ? ActiveCollision  : ECollisionEnabled::NoCollision, false);
+		
+			InOutState[VoxelIndex] = static_cast<uint8>(bActive);
+			bFilterChanged = true;
+		}
 	}
 	
-	if (bFilterChanged) Body->UpdatePhysicsFilterData();
+	if (bFilterChanged)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::UpdatePhysicsFilterData);
+
+		Body->UpdatePhysicsFilterData();
+	}
 }
