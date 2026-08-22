@@ -41,8 +41,7 @@ bool FWPVoxelBaker::Bake(UWPTransitComponent* TransitComp, FText& OutMessage)
 	const UWPSettings* Settings = GetDefault<UWPSettings>();
 	FString GeneratedRootPath;
 	FString PathError;
-	if (!IsValid(Settings)
-		|| !Settings->TryResolveGeneratedVoxelPath(GeneratedRootPath, PathError))
+	if (!IsValid(Settings) || !Settings->TryResolveGeneratedVoxelPath(GeneratedRootPath, PathError))
 	{
 		if (PathError.IsEmpty())
 		{
@@ -362,7 +361,7 @@ UWPVoxelData* FWPVoxelBaker::BakePrimitive(
 	Data->SourceBodyGuid = IsValid(SourceMesh) ? SourceBodySetup->BodySetupGuid : FGuid();
 	Data->SourceShapeClass = SourceShapeClass;
 	Data->SourceShapeSize = SourceShapeSize;
-	
+	Data->VoxelCount = Centers.Num();
 	Data->VoxelCenters = MoveTemp(Centers);
 	Data->VoxelExtent = FVector(FinalVoxelSize * 0.5f);
 	Data->VoxelSize = FinalVoxelSize;

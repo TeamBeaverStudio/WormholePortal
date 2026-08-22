@@ -19,6 +19,7 @@
 #include "Transit/WPTransitRun.h"
 #include "Voxel/WPVoxelData.h"
 #include "WPLog.h"
+#include "WPSettings.h"
 #include "Transit/WPTransitComponent.h"
 
 bool FWPVoxel::GatherPairs(FWPTransitRun& Run)
@@ -254,19 +255,31 @@ bool FWPVoxel::PrepPair(FWPVoxelPair& Pair)
 		Pair.OriginTwinBodySetup = nullptr;
 		return false;
 	}
+	
+	const UWPSettings* Settings = GetDefault<UWPSettings>();
+	const ECollisionChannel PortalCollisionChannel = Settings->PortalCollisionChannel;
+	Pair.OriginMasterPCR = Master->GetCollisionResponseToChannel(PortalCollisionChannel);
+	Pair.OriginTwinPCR = Twin->GetCollisionResponseToChannel(PortalCollisionChannel);
+	Master->SetCollisionResponseToChannel(PortalCollisionChannel, ECR_Ignore);
+	Twin->SetCollisionResponseToChannel(PortalCollisionChannel, ECR_Ignore);
 
 	const bool bMasterReady = SetBodySetup(Master, VoxelBodySetup);
 	const bool bTwinReady = bMasterReady && SetBodySetup(Twin, VoxelBodySetup);
 
+	// Roll back Code (BodySetup 생성에 실패 시 Rollback 합니다)
 	if (!bMasterReady || !bTwinReady)
 	{
 		SetBodySetup(Master, Pair.OriginMasterBodySetup);
 		SetBodySetup(Twin, Pair.OriginTwinBodySetup);
+		Master->SetCollisionResponseToChannel(PortalCollisionChannel, Pair.OriginMasterPCR);
+		Twin->SetCollisionResponseToChannel(PortalCollisionChannel, Pair.OriginMasterPCR);
 		Pair.OriginMasterBodySetup = nullptr;
 		Pair.OriginTwinBodySetup = nullptr;
+		Pair.OriginMasterPCR = ECR_MAX;
+		Pair.OriginTwinPCR = ECR_MAX;
 		return false;
 	}
-
+	
 	Pair.MasterState.Init(1, VoxelData->VoxelCenters.Num());
 	Pair.TwinState.Init(1, VoxelData->VoxelCenters.Num());
 	Pair.bUsingVoxelBody = true;
@@ -293,11 +306,25 @@ void FWPVoxel::ResetPair(FWPVoxelPair& Pair)
 	{
 		SetBodySetup(Twin, Pair.OriginTwinBodySetup);
 	}
+	
+	const UWPSettings* Settings = GetDefault<UWPSettings>();
+	const ECollisionChannel PortalCollisionChannel = Settings->PortalCollisionChannel;
+	
+	if (IsValid(Master))
+	{
+		Master->SetCollisionResponseToChannel(PortalCollisionChannel, Pair.OriginMasterPCR);
+	}
+	if (IsValid(Twin))
+	{
+		Twin->SetCollisionResponseToChannel(PortalCollisionChannel, Pair.OriginTwinPCR);
+	}
 
 	Pair.MasterState.Reset();
 	Pair.TwinState.Reset();
 	Pair.OriginMasterBodySetup = nullptr;
 	Pair.OriginTwinBodySetup = nullptr;
+	Pair.OriginMasterPCR = ECR_MAX;
+	Pair.OriginTwinPCR = ECR_MAX;
 	Pair.bUsingVoxelBody = false;
 }
 

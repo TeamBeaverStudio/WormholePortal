@@ -36,6 +36,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Wormhole Portal|Voxel")
 	float VoxelSize = 0.f;
 	
+	// Number of Voxel Centers.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Wormhole Portal|Voxel")
+	int32 VoxelCount = 0;
+	
 	// ======================================================================================
 	// The fields below are stored only for internal Asset management and are not exposed to
 	// Details or Blueprint.

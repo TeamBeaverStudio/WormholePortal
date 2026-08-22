@@ -40,6 +40,12 @@ struct FWPVoxelPair
 	UPROPERTY(Transient)
 	TObjectPtr<UBodySetup> OriginTwinBodySetup;
 	
+	// Master's WPPortalCollision Response before Voxel Body swap, restored when Transit ends.
+	ECollisionResponse OriginMasterPCR = ECR_MAX;
+
+	// Twin's WPPortalCollision Response before Voxel Body swap, restored when Transit ends.
+	ECollisionResponse OriginTwinPCR = ECR_MAX;
+	
 	// Editor Bake result used by the Master and Twin.
 	UPROPERTY(Transient)
 	TObjectPtr<UWPVoxelData> VoxelData;
