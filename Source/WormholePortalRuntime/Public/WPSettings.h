@@ -69,6 +69,12 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Trace")
 	FName PortalTraceChannelName = TEXT("WPPortalTrace");
 	
+	UPROPERTY(Config, EditAnywhere, Category = "Collision")
+	TEnumAsByte<ECollisionChannel> PortalCollisionChannel = ECC_GameTraceChannel2;
+	
+	UPROPERTY(Config, EditAnywhere, Category = "Collision")
+	FName PortalCollisionChannelName = TEXT("WPPortalCollision");
+	
 	// Maximum angular tolerance for treating a candidate as tied with the closest tangent plane.
 	UPROPERTY(Config, EditAnywhere, Category = "Transit|Plane Selection",
 		meta = (ClampMin = "0.0", ClampMax = "90.0", UIMin = "0.0", UIMax = "90.0", Units = "deg"))

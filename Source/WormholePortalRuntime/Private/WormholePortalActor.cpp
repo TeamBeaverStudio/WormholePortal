@@ -1464,28 +1464,22 @@ void AWormholePortalActor::ApplyPortalCollisionSettings() const
 	OuterProxy->SetCollisionResponseToAllChannels(ECR_Ignore);
 	OuterProxy->SetGenerateOverlapEvents(false);
 	
+	const UWPSettings* Settings = GetDefault<UWPSettings>();
+	const ECollisionChannel PortalCollisionChannel = Settings->PortalCollisionChannel;
+	const ECollisionChannel PortalTraceChannel = Settings->PortalTraceChannel;
+	
+	// Portal Overlap Collision Settings
 	TriggerVolume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	TriggerVolume->SetCollisionObjectType(ECC_WorldDynamic);
-	TriggerVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
-	TriggerVolume->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	TriggerVolume->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Overlap);
-	TriggerVolume->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+	TriggerVolume->SetCollisionObjectType(PortalCollisionChannel);
+	TriggerVolume->SetCollisionResponseToAllChannels(ECR_Overlap);
 	TriggerVolume->SetGenerateOverlapEvents(true);
 	
+	// Line Trace Trace Volume Settings
 	TraceVolume->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	TraceVolume->SetCollisionObjectType(ECC_WorldDynamic);
 	TraceVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
-	TraceVolume->SetGenerateOverlapEvents(false);
-	
-	ApplyPortalTraceChannelResponses();
-}
-
-void AWormholePortalActor::ApplyPortalTraceChannelResponses() const
-{
-	const UWPSettings* Settings = GetDefault<UWPSettings>();
-	const ECollisionChannel PortalTraceChannel = Settings->PortalTraceChannel;
-	
 	TraceVolume->SetCollisionResponseToChannel(PortalTraceChannel, ECR_Block);
+	TraceVolume->SetGenerateOverlapEvents(false);
 }
 
 void AWormholePortalActor::OnPortalTriggerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,

@@ -20,6 +20,7 @@
 #include "Transit/WPTransitComponent.h"
 #include "Transit/WPTransitTags.h"
 #include "Transit/Handler/WPPhysicsHandler.h"
+#include "WPSettings.h"
 
 FWPTransitResolveResult FWPTransitTypeResolver::Resolve(const AActor* Actor, const UWPTransitComponent* TransitComponent, EWPTransitType RequestedType)
 {
@@ -427,24 +428,19 @@ bool FWPTransitTypeResolver::HasVoxelData(const UWPTransitComponent* TransitComp
 
 bool FWPTransitTypeResolver::CanPortalOverlap(const UPrimitiveComponent* Component)
 {
-	// 검사기준은 현재 Portal Trigger 설정과 맞춤.
-	if (!IsValid(Component) || !Component->IsQueryCollisionEnabled()
-		|| !Component->GetGenerateOverlapEvents() || Component->GetCollisionResponseToChannel(ECC_WorldDynamic) == ECR_Ignore)
+	if (!IsValid(Component) || !Component->IsQueryCollisionEnabled() || !Component->GetGenerateOverlapEvents())
 	{
 		return false;
 	}
 	
-	// Keep this list synchronized with AWormholePortalActor::ApplyPortalCollisionSettings().
-	switch (Component->GetCollisionObjectType())
+	const UWPSettings* Settings = GetDefault<UWPSettings>();
+	if (!IsValid(Settings))
 	{
-	case ECC_Pawn:
-	case ECC_PhysicsBody:
-	case ECC_WorldDynamic:
-		return true;
-
-	default:
 		return false;
 	}
+	
+	// Check Component Collision Response to WPPortalCollision is ECR_Overlap or ECR_Block
+	return Component->GetCollisionResponseToChannel(Settings->PortalCollisionChannel.GetValue()) != ECR_Ignore;
 }
 
 bool FWPTransitTypeResolver::IsPhysicsBody(const UPrimitiveComponent* Comp)

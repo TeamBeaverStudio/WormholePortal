@@ -47,6 +47,80 @@ namespace
 		}
 		return Path;
 	}
+	
+	// **** Channel Helper Functions Start****
+	FText DescribeChannelStatus(const TCHAR* ChannelName, FWPPortalChannelConfig::EStatus Status)
+	{
+		using EStatus = FWPPortalChannelConfig::EStatus;
+		switch (Status)
+		{
+		case EStatus::Valid:			return FText::Format(LOCTEXT("ChannelValid", "{0}: Valid"), FText::FromString(ChannelName));
+		case EStatus::Missing:			return FText::Format(LOCTEXT("ChannelMissing", "{0}: Missing"), FText::FromString(ChannelName));
+		case EStatus::WrongType:		return FText::Format(LOCTEXT("ChannelWrongType", "{0}: Wrong Channel Type"), FText::FromString(ChannelName));
+		case EStatus::ChannelMismatch:	return FText::Format(LOCTEXT("ChannelMismatch", "{0}: Settings Point To A Different Channel"), FText::FromString(ChannelName));
+		case EStatus::NoFreeChannel:	return FText::Format(LOCTEXT("ChannelNoFreeChannel", "{0}: No Free Game Channel"), FText::FromString(ChannelName));
+		default:						return FText::GetEmpty();
+		}
+	}
+	
+	bool AppendAddOrAlignResultMessage(const TCHAR* ChannelName, FWPPortalChannelConfig::EAddOrAlignResult Result, TArray<FText>& OutMessages)
+	{
+		using EAddOrAlignResult = FWPPortalChannelConfig::EAddOrAlignResult;
+		switch (Result)
+		{
+		case EAddOrAlignResult::Added:
+			OutMessages.Add(FText::Format(
+				LOCTEXT("ChannelAdded", "Added {0} to Config/DefaultEngine.ini. Restart the editor before relying on it."),
+				FText::FromString(ChannelName)));
+			return false;
+
+		case EAddOrAlignResult::SettingsAligned:
+			OutMessages.Add(FText::Format(
+				LOCTEXT("ChannelSettingsAligned", "Wormhole Portal settings now use the existing {0} channel. Restart the editor before relying on it."),
+				FText::FromString(ChannelName)));
+			return false;
+
+		case EAddOrAlignResult::WrongType:
+			OutMessages.Add(FText::Format(
+				LOCTEXT("ChannelWrongTypeFixFailed", "{0} already exists, but it is not the expected channel type. Open Collision Settings and convert or rename it manually."),
+				FText::FromString(ChannelName)));
+			return true;
+
+		case EAddOrAlignResult::NoFreeChannel:
+			OutMessages.Add(FText::Format(
+				LOCTEXT("ChannelNoFreeChannelFixFailed", "Could not add {0} because no free game channel was found."),
+				FText::FromString(ChannelName)));
+			return true;
+
+		case EAddOrAlignResult::DefaultEngineIniReadOnly:
+			OutMessages.Add(FText::Format(
+				LOCTEXT("ChannelDefaultEngineIniReadOnly", "Config/DefaultEngine.ini is read-only. Check it out from source control, then add {0} again."),
+				FText::FromString(ChannelName)));
+			return true;
+
+		case EAddOrAlignResult::AddFailed:
+			OutMessages.Add(FText::Format(
+				LOCTEXT("ChannelAddFailed", "Failed to add {0} to Config/DefaultEngine.ini."),
+				FText::FromString(ChannelName)));
+			return true;
+
+		case EAddOrAlignResult::ExistingSettingsSaveFailed:
+			OutMessages.Add(FText::Format(
+				LOCTEXT("ChannelSettingsAlignFailed", "Found the existing {0} channel, but failed to save Wormhole Portal settings."),
+				FText::FromString(ChannelName)));
+			return true;
+
+		case EAddOrAlignResult::AddedSettingsSaveFailed:
+			OutMessages.Add(FText::Format(
+				LOCTEXT("ChannelSettingsSaveFailed", "Added {0}, but failed to save Wormhole Portal settings. Check Config/DefaultEngine.ini before continuing."),
+				FText::FromString(ChannelName)));
+			return true;
+
+		default:
+			return true;
+		}
+	}
+	// **** Channel Helper Functions End ****
 
 	bool IsSamePackageDirectory(const FString& Left, const FString& Right)
 	{
@@ -61,7 +135,7 @@ const FName FWormholePortalEditor::TransitManagerTabName(TEXT("WormholePortalTra
 void FWormholePortalEditor::StartupModule()
 {
 	RegisterLUTSettingsSync();
-	ValidatePortalTraceChannel();
+	ValidatePortalChannels();
 	RegisterTransitDetails();
 	RegisterPortalDebugVisualizer();
 	
@@ -82,8 +156,8 @@ void FWormholePortalEditor::ShutdownModule()
 	UnregisterLUTSettingsSync();
 	UnregisterTransitDetails();
 	UnregisterPortalDebugVisualizer();
-	StopPortalTraceValidationTicker();
-	PortalTraceChannelNotification.Reset();
+	StopPortalChannelValidationTicker();
+	PortalChannelNotification.Reset();
 	
 	// Transit Manager 관련 콜백 및 등록 해제
 	UToolMenus::UnRegisterStartupCallback(this);
@@ -280,53 +354,32 @@ void FWormholePortalEditor::UnregisterPortalDebugVisualizer()
 	}
 }
 
-void FWormholePortalEditor::ValidatePortalTraceChannel()
+void FWormholePortalEditor::ValidatePortalChannels()
 {
-	const FWPPortalTraceChannelConfig::EStatus Status = FWPPortalTraceChannelConfig::GetStatus();
-	if (Status != FWPPortalTraceChannelConfig::EStatus::Valid)
+	const FWPPortalChannelConfig::EStatus TraceStatus = FWPPortalChannelConfig::GetTraceChannelStatus();
+	const FWPPortalChannelConfig::EStatus CollisionStatus = FWPPortalChannelConfig::GetCollisionChannelStatus();
+	
+	if (TraceStatus != FWPPortalChannelConfig::EStatus::Valid || CollisionStatus != FWPPortalChannelConfig::EStatus::Valid)
 	{
-		ShowPortalTraceChannelNotification(Status);
+		ShowPortalChannelNotification(TraceStatus, CollisionStatus);
 	}
 }
 
-void FWormholePortalEditor::ShowPortalTraceChannelNotification(
-	FWPPortalTraceChannelConfig::EStatus Status)
+void FWormholePortalEditor::ShowPortalChannelNotification(FWPPortalChannelConfig::EStatus TraceStatus, FWPPortalChannelConfig::EStatus CollisionStatus)
 {
-	FText Message = LOCTEXT(
-		"MissingPortalTraceChannel",
-		"Wormhole Portal requires a dedicated Trace Channel named WPPortalTrace. Portal tracing will not work until this is configured."
-	);
-
-	if (Status == FWPPortalTraceChannelConfig::EStatus::WrongType)
-	{
-		Message = LOCTEXT(
-			"PortalTraceWrongType",
-			"Wormhole Portal found a collision channel named WPPortalTrace, but it is not a Trace Channel. Portal tracing will not work until this is fixed."
-		);
-	}
-	else if (Status == FWPPortalTraceChannelConfig::EStatus::ChannelMismatch)
-	{
-		Message = LOCTEXT(
-			"PortalTraceChannelMismatch",
-			"Wormhole Portal found WPPortalTrace, but plugin settings point to a different collision channel. Portal tracing will use the wrong channel until this is fixed."
-		);
-	}
-	else if (Status == FWPPortalTraceChannelConfig::EStatus::NoFreeChannel)
-	{
-		Message = LOCTEXT(
-			"PortalTraceNoFreeChannel",
-			"Wormhole Portal requires a dedicated Trace Channel named WPPortalTrace, but all game trace channels appear to be in use."
-		);
-	}
+	const FText Message = FText::Format(
+		LOCTEXT("PortalChannelSetupRequired", "Wormhole Portal Collision Setup Required\n\n{0}\n{1}"),
+		DescribeChannelStatus(TEXT("WPPortalTrace"), TraceStatus),
+		DescribeChannelStatus(TEXT("WPPortalCollision"), CollisionStatus));
 
 	FNotificationInfo Info(Message);
 	Info.bFireAndForget = false;
 	Info.ExpireDuration = 0.f;
 
 	Info.ButtonDetails.Add(FNotificationButtonInfo(
-		LOCTEXT("AddPortalTraceChannelAutomatically", "Add Automatically"),
-		LOCTEXT("AddPortalTraceChannelAutomaticallyTooltip", "Add WPPortalTrace to Config/DefaultEngine.ini and update Wormhole Portal settings."),
-		FSimpleDelegate::CreateRaw(this, &FWormholePortalEditor::AddPortalTraceChannelToProjectConfig),
+		LOCTEXT("AddPortalChannelsAutomatically", "Add/Repair Automatically"),
+		LOCTEXT("AddPortalChannelsAutomaticallyTooltip", "Add missing Wormhole Portal channels to Config/DefaultEngine.ini and update Wormhole Portal settings."),
+		FSimpleDelegate::CreateRaw(this, &FWormholePortalEditor::AddPortalChannelsToProjectConfig),
 		SNotificationItem::CS_None
 	));
 
@@ -339,8 +392,8 @@ void FWormholePortalEditor::ShowPortalTraceChannelNotification(
 
 	if (const TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info))
 	{
-		PortalTraceChannelNotification = Notification;
-		StartPortalTraceValidationTicker();
+		PortalChannelNotification = Notification;
+		StartPortalChannelValidationTicker();
 	}
 }
 
@@ -357,61 +410,29 @@ void FWormholePortalEditor::ShowCompletionNotification(
 	}
 }
 
-void FWormholePortalEditor::AddPortalTraceChannelToProjectConfig()
+void FWormholePortalEditor::AddPortalChannelsToProjectConfig()
 {
-	using EAddOrAlignResult = FWPPortalTraceChannelConfig::EAddOrAlignResult;
-
-	switch (FWPPortalTraceChannelConfig::AddOrAlignProjectConfig())
+	using EStatus = FWPPortalChannelConfig::EStatus;
+	
+	TArray<FText> ResultMessage;
+	bool bAnyFailed = false;
+	if (FWPPortalChannelConfig::GetTraceChannelStatus() != EStatus::Valid)
 	{
-	case EAddOrAlignResult::Added:
-		DismissPortalTraceChannelNotification();
-		ShowCompletionNotification(
-			LOCTEXT("PortalTraceAdded", "Added WPPortalTrace to Config/DefaultEngine.ini. Restart the editor before relying on portal traces."),
-			SNotificationItem::CS_Success);
-		return;
+		bAnyFailed |= AppendAddOrAlignResultMessage(TEXT("WPPortalTrace"),  FWPPortalChannelConfig::AddOrAlignTraceChannel(), ResultMessage);
+	}
+	
+	if (FWPPortalChannelConfig::GetCollisionChannelStatus() != EStatus::Valid)
+	{
+		bAnyFailed |= AppendAddOrAlignResultMessage(TEXT("WPPortalCollision"),  FWPPortalChannelConfig::AddOrAlignCollisionChannel(), ResultMessage);
+	}
+	
+	if (ResultMessage.IsEmpty()) return;
 
-	case EAddOrAlignResult::SettingsAligned:
-		DismissPortalTraceChannelNotification();
-		ShowCompletionNotification(
-			LOCTEXT("PortalTraceSettingsAligned", "Wormhole Portal settings now use the existing WPPortalTrace channel. Restart the editor before relying on portal traces."),
-			SNotificationItem::CS_Success);
-		return;
-
-	case EAddOrAlignResult::WrongType:
-		ShowCompletionNotification(
-			LOCTEXT("PortalTraceWrongTypeFixFailed", "WPPortalTrace already exists, but it is not a Trace Channel. Open Collision Settings and convert or rename it manually."),
-			SNotificationItem::CS_Fail);
-		return;
-
-	case EAddOrAlignResult::NoFreeChannel:
-		ShowCompletionNotification(
-			LOCTEXT("PortalTraceNoFreeChannelFixFailed", "Could not add WPPortalTrace because no free game trace channel was found."),
-			SNotificationItem::CS_Fail);
-		return;
-
-	case EAddOrAlignResult::DefaultEngineIniReadOnly:
-		ShowCompletionNotification(
-			LOCTEXT("PortalTraceDefaultEngineIniReadOnly", "Config/DefaultEngine.ini is read-only. Check it out from source control, then add WPPortalTrace again."),
-			SNotificationItem::CS_Fail);
-		return;
-
-	case EAddOrAlignResult::AddFailed:
-		ShowCompletionNotification(
-			LOCTEXT("PortalTraceAddFailed", "Failed to add WPPortalTrace to Config/DefaultEngine.ini."),
-			SNotificationItem::CS_Fail);
-		return;
-
-	case EAddOrAlignResult::ExistingSettingsSaveFailed:
-		ShowCompletionNotification(
-			LOCTEXT("PortalTraceSettingsAlignFailed", "Found the existing WPPortalTrace channel, but failed to save Wormhole Portal settings."),
-			SNotificationItem::CS_Fail);
-		return;
-
-	case EAddOrAlignResult::AddedSettingsSaveFailed:
-		ShowCompletionNotification(
-			LOCTEXT("PortalTraceSettingsSaveFailed", "Added WPPortalTrace, but failed to save Wormhole Portal settings. Check Config/DefaultEngine.ini before continuing."),
-			SNotificationItem::CS_Fail);
-		return;
+	ShowCompletionNotification(FText::Join(FText::FromString(TEXT("\n")), ResultMessage), bAnyFailed ? SNotificationItem::CS_Fail : SNotificationItem::CS_Success);
+	
+	if (FWPPortalChannelConfig::GetTraceChannelStatus() == EStatus::Valid && FWPPortalChannelConfig::GetCollisionChannelStatus() == EStatus::Valid)
+	{
+		DismissPortalChannelNotification();
 	}
 }
 
@@ -423,57 +444,58 @@ void FWormholePortalEditor::OpenCollisionProjectSettings() const
 	}
 }
 
-void FWormholePortalEditor::StartPortalTraceValidationTicker()
+void FWormholePortalEditor::StartPortalChannelValidationTicker()
 {
-	if (PortalTraceValidationTickerHandle.IsValid())
+	if (PortalChannelValidationTickerHandle.IsValid())
 	{
 		return;	
 	}
 	
 	constexpr float ValidationIntervalSeconds = 1.0f;
-	PortalTraceValidationTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
-		FTickerDelegate::CreateRaw(this, &FWormholePortalEditor::TickPortalTraceValidation),
+	PortalChannelValidationTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateRaw(this, &FWormholePortalEditor::TickPortalChannelValidation),
 		ValidationIntervalSeconds);
 }
 
-void FWormholePortalEditor::StopPortalTraceValidationTicker()
+void FWormholePortalEditor::StopPortalChannelValidationTicker()
 {
-	if (!PortalTraceValidationTickerHandle.IsValid())
+	if (!PortalChannelValidationTickerHandle.IsValid())
 	{
 		return;
 	}
 	
-	FTSTicker::RemoveTicker(PortalTraceValidationTickerHandle);
-	PortalTraceValidationTickerHandle.Reset();
+	FTSTicker::RemoveTicker(PortalChannelValidationTickerHandle);
+	PortalChannelValidationTickerHandle.Reset();
 }
 
-bool FWormholePortalEditor::TickPortalTraceValidation(float DeltaTime)
+bool FWormholePortalEditor::TickPortalChannelValidation(float DeltaTime)
 {
-	if (!PortalTraceChannelNotification.IsValid())
+	if (!PortalChannelNotification.IsValid())
 	{
-		PortalTraceValidationTickerHandle.Reset();
+		PortalChannelValidationTickerHandle.Reset();
 		return false;
 	}
 	
-	if (FWPPortalTraceChannelConfig::GetStatus() == FWPPortalTraceChannelConfig::EStatus::Valid)
+	if (FWPPortalChannelConfig::GetTraceChannelStatus() == FWPPortalChannelConfig::EStatus::Valid && 
+		FWPPortalChannelConfig::GetCollisionChannelStatus() == FWPPortalChannelConfig::EStatus::Valid)
 	{
-		DismissPortalTraceChannelNotification();
+		DismissPortalChannelNotification();
 		return false;
 	}
 	
 	return true;
 }
 
-void FWormholePortalEditor::DismissPortalTraceChannelNotification()
+void FWormholePortalEditor::DismissPortalChannelNotification()
 {
-	if (TSharedPtr<SNotificationItem> Notification = PortalTraceChannelNotification.Pin())
+	if (TSharedPtr<SNotificationItem> Notification = PortalChannelNotification.Pin())
 	{
 		Notification->SetCompletionState(SNotificationItem::CS_Success);
 		Notification->ExpireAndFadeout();
 	}
 	
-	PortalTraceChannelNotification.Reset();
-	StopPortalTraceValidationTicker();
+	PortalChannelNotification.Reset();
+	StopPortalChannelValidationTicker();
 }
 
 void FWormholePortalEditor::RegisterTransitManagerMenus()
