@@ -402,7 +402,7 @@ private:
 	float										VoxelSize = 20.f;
 	
 	// Maximum number of Voxel Box Shapes generated for one Static Mesh.
-	UPROPERTY(EditAnywhere, Category = "Wormhole Portal|Voxel", meta = (ClampMin = "1" , UIMin = "1"))
+	UPROPERTY(EditAnywhere, Category = "Wormhole Portal|Voxel", meta = (ClampMin = "1", ClampMax = "2048", UIMin = "1", UIMax = "2048"))
 	int32										MaxVoxelCount = 256;
 	
 	// Approximate Overlap generation strategy used for the compound Voxel Body during Crossing.
