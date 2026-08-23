@@ -10,6 +10,27 @@ class UBodySetup;
 class UStaticMesh;
 class FWPVoxelBaker;
 class UPrimitiveComponent;
+
+
+// One Node of the median-split binary BVH. Both Child indices are INDEX_NONE for a Leaf
+USTRUCT()
+struct FWPVoxelBVHNode
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	FVector BoundsMin = FVector::ZeroVector;
+	
+	UPROPERTY()
+	FVector BoundsMax = FVector::ZeroVector;
+	
+	UPROPERTY()
+	int32 LeftChildIndex = INDEX_NONE;
+	
+	UPROPERTY()
+	int32 RightChildIndex = INDEX_NONE;
+};
+
 /**
  * @brief Shared Asset containing a Static Mesh's Simple Collision baked into Voxel Shapes.
  *
@@ -52,6 +73,24 @@ public:
 	// Center of each Voxel Box Shape in the original Mesh's local space.
 	UPROPERTY()
 	TArray<FVector> VoxelCenters;
+	
+	/** Chunk Section **/
+	// Chunk grid resolution per axis. Used at Runtime to decode a flat Chunk Index back into grid coordinates.
+	UPROPERTY()
+	int32 ChunkGridResolution = 3;
+	
+	// Chunk Index array that corresponds 1:1 with VoxelCenters.
+	UPROPERTY()
+	TArray<int32> VoxelChunkIndices;
+	
+	// Local-space Bounds tightly enclosing only the Voxel Centers assigned to each Chunk. Stays an invalid Box for an empty Chunk.
+	UPROPERTY()
+	TArray<FBox> ChunkLocalBounds;
+	
+	/** BVH Section **/
+	// Local-space binary BVH pre-baked over the Voxel Centers.
+	UPROPERTY()
+	TArray<FWPVoxelBVHNode> VoxelBVHNodes;
 	
 	// Static Mesh BodySetup change identifier at Bake time.
 	UPROPERTY()

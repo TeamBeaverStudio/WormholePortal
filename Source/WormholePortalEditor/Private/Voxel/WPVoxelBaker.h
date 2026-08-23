@@ -76,7 +76,7 @@ private:
  	 * @return Reused or newly created UWPVoxelData, or nullptr on failure.
  	 */
 	static UWPVoxelData* BakePrimitive(UPrimitiveComponent* SourcePrimitive, const FString& GeneratedRootPath,
-		float RequestedSize, int32 MaxVoxelCount,
+		float RequestedSize, int32 MaxVoxelCount, int32 ChunkGridResolution, int32 MaxVoxelsPerBVHLeaf, 
 		OUT TArray<UWPVoxelData*>& OutCreatedData, OUT FText& OutMessage);
 	
 	static UBodySetup* CreateVoxelBodySetup(UWPVoxelData* Data, const UBodySetup* SourceBodySetup, const TArray<FVector>& Centers, float VoxelSize);
@@ -121,7 +121,7 @@ private:
  	 * @return Identifier used to find an equivalent Bake result.
  	 */
 	static FString MakeKey(const UPrimitiveComponent* SourcePrimitive, const FString& SourceAssetHash, float RequestedSize, 
-		int32 MaxVoxelCount, const FString& BakeResultHash);
+		int32 MaxVoxelCount, int32 ChunkGridResolution, int32 MaxVoxelsPerBVHLeaf, const FString& BakeResultHash);
 
 	/**
 	 * @brief Finds an existing reusable Voxel Data Asset matching the source Primitive and Bake result.

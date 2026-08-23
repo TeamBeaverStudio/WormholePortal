@@ -40,11 +40,20 @@ void FWPTransitComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 		GET_MEMBER_NAME_CHECKED(UWPTransitComponent, VoxelSize));
 	TSharedPtr<IPropertyHandle> CountProp = DetailLayout.GetProperty(
 		GET_MEMBER_NAME_CHECKED(UWPTransitComponent, MaxVoxelCount));
+	TSharedPtr<IPropertyHandle> ModeProp = DetailLayout.GetProperty(
+		GET_MEMBER_NAME_CHECKED(UWPTransitComponent, VoxelOverlapMode));
+	TSharedPtr<IPropertyHandle> ChunkResProp = DetailLayout.GetProperty(
+		GET_MEMBER_NAME_CHECKED(UWPTransitComponent, ChunkGridResolution));
+	TSharedPtr<IPropertyHandle> BVHLeafProp = DetailLayout.GetProperty(
+		GET_MEMBER_NAME_CHECKED(UWPTransitComponent, MaxVoxelsPerBVHLeaf));
 	TSharedPtr<IPropertyHandle> DataProp = DetailLayout.GetProperty(
 		GET_MEMBER_NAME_CHECKED(UWPTransitComponent, VoxelData));
 	
 	DetailLayout.HideProperty(SizeProp);
 	DetailLayout.HideProperty(CountProp);
+	DetailLayout.HideProperty(ModeProp);
+	DetailLayout.HideProperty(ChunkResProp);
+	DetailLayout.HideProperty(BVHLeafProp);
 	DetailLayout.HideProperty(DataProp);
 	
 	IDetailCategoryBuilder& WormholeCategory = DetailLayout.EditCategory(TEXT("Wormhole Portal"));
@@ -95,6 +104,31 @@ void FWPTransitComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 	
 	VoxelGroup.AddPropertyRow(SizeProp.ToSharedRef()).IsEnabled(VoxelControlsEnabled);
 	VoxelGroup.AddPropertyRow(CountProp.ToSharedRef()).IsEnabled(VoxelControlsEnabled);
+	VoxelGroup.AddPropertyRow(ModeProp.ToSharedRef()).IsEnabled(VoxelControlsEnabled);
+	
+	// Reads the currently selected Mode to decide whether the Chunk/BVH-only parameters are shown.
+	const auto GetCurrentMode = [ModeProp]()
+	{
+		uint8 RawValue = static_cast<uint8>(EWPVoxelOverlapMode::Native);
+		if (ModeProp.IsValid())
+		{
+			ModeProp->GetValue(RawValue);
+		}
+		return static_cast<EWPVoxelOverlapMode>(RawValue);
+	};
+	
+	VoxelGroup.AddPropertyRow(ChunkResProp.ToSharedRef()).IsEnabled(VoxelControlsEnabled).
+		Visibility(TAttribute<EVisibility>::CreateLambda([GetCurrentMode]()
+		{
+			return GetCurrentMode() == EWPVoxelOverlapMode::Chunk ? EVisibility::Visible : EVisibility::Collapsed;
+		}));
+	
+	VoxelGroup.AddPropertyRow(BVHLeafProp.ToSharedRef()).IsEnabled(VoxelControlsEnabled)
+		.Visibility(TAttribute<EVisibility>::CreateLambda([GetCurrentMode]()
+		{
+			return GetCurrentMode() == EWPVoxelOverlapMode::BVH ? EVisibility::Visible : EVisibility::Collapsed;
+		}));
+	
 	VoxelGroup.AddPropertyRow(DataProp.ToSharedRef()).IsEnabled(VoxelControlsEnabled);
 }
 

@@ -7,6 +7,8 @@
 class UBodySetup;
 class UPrimitiveComponent;
 class UWorld;
+class UWPVoxelData;
+enum class EWPVoxelOverlapMode : uint8;
 
 struct FWPTransitRun;
 struct FWPVoxelPair;
@@ -47,7 +49,9 @@ private:
 	// Restores one Master/Twin Pair to its original BodySetups.
 	static void ResetPair(FWPVoxelPair& Pair);
 	
-	// Enables or disables a Component's Voxel Shapes relative to the specified plane.
-	static void UpdatePrimitive(UPrimitiveComponent* Comp, const TArray<FVector>& Centers, 
-		const FVector& Surface, const FVector& Normal, TArray<uint8>& InOutState);
+	// Enables or disables a Component's Voxel Shapes relative to the specified plane. In Chunk Mode, also
+	// accumulates each active Voxel's World Center into OutActiveChunkBounds, indexed by its owning Chunk.
+	static void UpdatePrimitive(UPrimitiveComponent* Comp, const UWPVoxelData* VoxelData, EWPVoxelOverlapMode Mode, 
+		const FVector& Surface, const FVector& Normal, 
+		OUT TArray<uint8>& InOutState, OUT TArray<FBox>& OutActiveChunkBounds);
 };

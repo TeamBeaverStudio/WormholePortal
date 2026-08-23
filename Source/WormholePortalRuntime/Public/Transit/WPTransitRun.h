@@ -56,6 +56,16 @@ struct FWPVoxelPair
 	// Current Query and Physics enabled state for each Twin Voxel Shape.
 	TArray<uint8> TwinState;
 	
+	// Overlap approximation Mode copied from the owning Transit Component when GatherPairs runs.
+	EWPVoxelOverlapMode Mode = EWPVoxelOverlapMode::Native;
+	
+	// Master's original GenerateOverlapEvents value before the Voxel Body swap, outside Native Mode. Restored on Reset.
+	bool bOriginGenerateOverlapEvents = false;
+	
+	/// Overlap targets approximately relayed in the previous frame under Chunk/BVH Mode. Serves as the basis for next frame's diff.
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> LastMasterOverlaps;
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> LastTwinOverlaps;
+	
 	// Indicates whether the Master and Twin Physics Bodies use the Voxel BodySetup.
 	bool bUsingVoxelBody = false;
 };

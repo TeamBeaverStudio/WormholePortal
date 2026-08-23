@@ -18,9 +18,11 @@
 
 #include "Transit/WPTransitRun.h"
 #include "Voxel/WPVoxelData.h"
+#include "Voxel/WPVoxelOverlapAccelerator.h"
 #include "WPLog.h"
 #include "WPSettings.h"
 #include "Transit/WPTransitComponent.h"
+#include "Transit/WPTransitTypes.h"
 
 bool FWPVoxel::GatherPairs(FWPTransitRun& Run)
 {
@@ -70,6 +72,7 @@ bool FWPVoxel::GatherPairs(FWPTransitRun& Run)
 		Pair.Master = Master;
 		Pair.Twin = Twin;
 		Pair.VoxelData = const_cast<UWPVoxelData*>(VoxelData);
+		Pair.Mode = TransitComp->GetVoxelOverlapMode();
 	}
 	
 	return true;
@@ -123,16 +126,40 @@ void FWPVoxel::Update(FWPTransitRun& Run, const FVector& SourceSurface, const FV
 		const UWPVoxelData* VoxelData = Pair.VoxelData.Get();
 		if (!Pair.bUsingVoxelBody || !IsValid(VoxelData)) continue;
 		
-		const int32 VoxelCount = Pair.VoxelData->VoxelCenters.Num();
+		TArray<FBox> MasterActiveBounds;
+		TArray<FBox> TwinActiveBounds;
 		
-		// Master + Twin Voxel Count
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::UpdateMaster);
-			UpdatePrimitive(Pair.Master, VoxelData->VoxelCenters, SourceSurface, SourceNormal, Pair.MasterState);
+			UpdatePrimitive(Pair.Master, VoxelData, Pair.Mode, SourceSurface, SourceNormal, Pair.MasterState, MasterActiveBounds);
 		}
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::UpdateTwin);
-			UpdatePrimitive(Pair.Twin, VoxelData->VoxelCenters, DestSurface, DestNormal, Pair.TwinState);
+			UpdatePrimitive(Pair.Twin, VoxelData, Pair.Mode, DestSurface, DestNormal, Pair.TwinState, TwinActiveBounds);
+		}
+		
+		if (Pair.Mode == EWPVoxelOverlapMode::BVH)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::CollectBVHBounds);
+			FWPVoxelOverlapAccelerator::CollectActiveBoundsBVH(VoxelData->VoxelBVHNodes, Pair.Master.Get(), SourceSurface, SourceNormal, MasterActiveBounds);
+			FWPVoxelOverlapAccelerator::CollectActiveBoundsBVH(VoxelData->VoxelBVHNodes, Pair.Twin.Get(), DestSurface, DestNormal, TwinActiveBounds);
+		}
+		else if (Pair.Mode == EWPVoxelOverlapMode::Chunk)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::MergeChunkBounds);
+			TArray<FBox> MergedMaster, MergedTwin;
+			FWPVoxelOverlapAccelerator::MergeAdjacentChunkBounds(MasterActiveBounds, VoxelData->ChunkGridResolution, MergedMaster);
+			FWPVoxelOverlapAccelerator::MergeAdjacentChunkBounds(TwinActiveBounds, VoxelData->ChunkGridResolution, MergedTwin);
+			MasterActiveBounds = MoveTemp(MergedMaster);
+			TwinActiveBounds = MoveTemp(MergedTwin);
+		}
+		
+		if (Pair.Mode == EWPVoxelOverlapMode::Chunk || Pair.Mode == EWPVoxelOverlapMode::BVH)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::RelayOverlaps);
+			FWPVoxelOverlapAccelerator::RelayOverlapDiff(Pair.Master.Get(), MasterActiveBounds, Pair.LastMasterOverlaps);
+			FWPVoxelOverlapAccelerator::RelayOverlapDiff(Pair.Twin.Get(), TwinActiveBounds, Pair.LastTwinOverlaps);
+			
 		}
 	}
 }
@@ -237,7 +264,18 @@ bool FWPVoxel::PrepPair(FWPVoxelPair& Pair)
 	Twin->SetCollisionEnabled(Master->GetCollisionEnabled());
 	Twin->SetCollisionObjectType(Master->GetCollisionObjectType());
 	Twin->SetCollisionResponseToChannels(Master->GetCollisionResponseToChannels());
-	Twin->SetGenerateOverlapEvents(Master->GetGenerateOverlapEvents());
+	
+	// Except in Native Mode, the real Voxel Body keeps GenerateOverlapEvents off; the Accelerator relays an approximation instead.
+	if (Pair.Mode == EWPVoxelOverlapMode::Native)
+	{
+		Twin->SetGenerateOverlapEvents(Master->GetGenerateOverlapEvents());
+	}
+	else
+	{
+		Pair.bOriginGenerateOverlapEvents = Master->GetGenerateOverlapEvents();
+		Master->SetGenerateOverlapEvents(false);
+		Twin->SetGenerateOverlapEvents(false);
+	}
 	
 	if (Twin->IsSimulatingPhysics() != Master->IsSimulatingPhysics())
 	{
@@ -272,7 +310,12 @@ bool FWPVoxel::PrepPair(FWPVoxelPair& Pair)
 		SetBodySetup(Master, Pair.OriginMasterBodySetup);
 		SetBodySetup(Twin, Pair.OriginTwinBodySetup);
 		Master->SetCollisionResponseToChannel(PortalCollisionChannel, Pair.OriginMasterPCR);
-		Twin->SetCollisionResponseToChannel(PortalCollisionChannel, Pair.OriginMasterPCR);
+		Twin->SetCollisionResponseToChannel(PortalCollisionChannel, Pair.OriginTwinPCR);
+		if (Pair.Mode != EWPVoxelOverlapMode::Native)
+		{
+			Master->SetGenerateOverlapEvents(Pair.bOriginGenerateOverlapEvents);
+			Twin->SetGenerateOverlapEvents(Pair.bOriginGenerateOverlapEvents);
+		}
 		Pair.OriginMasterBodySetup = nullptr;
 		Pair.OriginTwinBodySetup = nullptr;
 		Pair.OriginMasterPCR = ECR_MAX;
@@ -293,6 +336,10 @@ void FWPVoxel::ResetPair(FWPVoxelPair& Pair)
 	{
 		return;
 	}
+	
+	// Fires any remaining EndComponentOverlap before restoring the original Body.
+	FWPVoxelOverlapAccelerator::Cleanup(Pair.Master.Get(), Pair.LastMasterOverlaps);
+	FWPVoxelOverlapAccelerator::Cleanup(Pair.Twin.Get(), Pair.LastTwinOverlaps);
 
 	UPrimitiveComponent* Master = Pair.Master.Get();
 	UPrimitiveComponent* Twin = Pair.Twin.Get();
@@ -313,6 +360,10 @@ void FWPVoxel::ResetPair(FWPVoxelPair& Pair)
 	if (IsValid(Master))
 	{
 		Master->SetCollisionResponseToChannel(PortalCollisionChannel, Pair.OriginMasterPCR);
+		if (Pair.Mode != EWPVoxelOverlapMode::Native)
+		{
+			Master->SetGenerateOverlapEvents(Pair.bOriginGenerateOverlapEvents);
+		}
 	}
 	if (IsValid(Twin))
 	{
@@ -325,22 +376,32 @@ void FWPVoxel::ResetPair(FWPVoxelPair& Pair)
 	Pair.OriginTwinBodySetup = nullptr;
 	Pair.OriginMasterPCR = ECR_MAX;
 	Pair.OriginTwinPCR = ECR_MAX;
+	Pair.bOriginGenerateOverlapEvents = false;
 	Pair.bUsingVoxelBody = false;
 }
 
-void FWPVoxel::UpdatePrimitive(UPrimitiveComponent* Comp, const TArray<FVector>& Centers, const FVector& Surface, const FVector& Normal, TArray<uint8>& InOutState)
+void FWPVoxel::UpdatePrimitive(UPrimitiveComponent* Comp, const UWPVoxelData* VoxelData, EWPVoxelOverlapMode Mode,
+	const FVector& Surface, const FVector& Normal, 
+	OUT TArray<uint8>& InOutState, OUT TArray<FBox>& OutActiveChunkBounds)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FWPVoxel::UpdatePrimitive);
 	
 	FBodyInstance* Body = IsValid(Comp) ? Comp->GetBodyInstance() : nullptr;
-	if (Body == nullptr || !Body->IsValidBodyInstance() || Centers.Num() != InOutState.Num()) return;
+	if (!IsValid(VoxelData) || Body == nullptr || !Body->IsValidBodyInstance() || VoxelData->VoxelCenters.Num() != InOutState.Num()) return;
 	
+	const TArray<FVector>& Centers = VoxelData->VoxelCenters;
 	const FVector SafeNormal = Normal.GetSafeNormal();
 	if (SafeNormal.IsNearlyZero()) return;
 	
 	const FTransform CompTransform = Comp->GetComponentTransform();
 	const ECollisionEnabled::Type ActiveCollision = Comp->GetCollisionEnabled();
 	bool bFilterChanged = false;
+	// Only in Chunk Mode, prepares one empty Box per Chunk to accumulate this frame's active Voxel Centers.
+	const bool bAccumulateChunks = Mode == EWPVoxelOverlapMode::Chunk && VoxelData->VoxelChunkIndices.Num() == Centers.Num();
+	if (bAccumulateChunks)
+	{
+		OutActiveChunkBounds.Init(FBox(ForceInit), VoxelData->ChunkLocalBounds.Num());
+	}
 	
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::ClassifyVoxelShapes);
@@ -349,6 +410,14 @@ void FWPVoxel::UpdatePrimitive(UPrimitiveComponent* Comp, const TArray<FVector>&
 		{
 			const FVector WorldCenter = CompTransform.TransformPosition(Centers[VoxelIndex]);
 			const bool bActive = FVector::DotProduct(WorldCenter - Surface, SafeNormal) > 0.0f;
+			
+			// Even when the Blocking state is unchanged, an active Voxel must still be accumulated for the Overlap
+			// approximation, so this runs before the early continue below.
+			if (bAccumulateChunks && bActive)
+			{
+				OutActiveChunkBounds[VoxelData->VoxelChunkIndices[VoxelIndex]] += WorldCenter;
+			}
+			
 			if (InOutState[VoxelIndex] == static_cast<uint8>(bActive)) continue;
 		
 			// 숨은 shape만 끄고, 다시 보이는 shape는 component의 원리 query, physics 방식 사용
