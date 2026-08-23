@@ -32,12 +32,14 @@ public:
 	static void Update(FWPTransitRun& Run, const FVector& SourceSurface, 
 		const FVector& SourceNormal, const FVector& DestSurface, const FVector& DestNormal);
 	
-	/**
- 	 * @brief Draws the current Master and Twin Voxel Shape states for an active Run.
- 	 * @param World World used for transient debug drawing.
- 	 * @param Run Transit Run containing the Voxel Pairs and current Shape states.
- 	 */
-	static void DrawDebug(UWorld* World, const FWPTransitRun& Run);
+	// Draws the current Master/Twin Voxel Shape Blocking states for an active Run.
+	static void DrawVoxelDebugBox(UWorld* World, const FWPTransitRun& Run);
+	
+	// Draws the last Chunk Overlap approximation Boxes computed by Update() for an active Run.
+	static void DrawChunkDebugBox(UWorld* World, const FWPTransitRun& Run);
+	
+	// Draws the last BVH Overlap approximation Boxes computed by Update() for an active Run.
+	static void DrawBVHDebugBox(UWorld* World, const FWPTransitRun& Run);
 	
 private:
 	// Reinitializes one Physics Body with a different collision definition.

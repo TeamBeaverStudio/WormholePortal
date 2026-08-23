@@ -26,16 +26,20 @@ class WORMHOLEPORTALRUNTIME_API FWPVoxelOverlapAccelerator
 {
 public:
 	// Assigns every Voxel Center to a Chunk grid cell and computes each Chunk's tight Local Bounds.
-	static void BuildChunkData(const TArray<FVector>& Centers, int32 ChunkGridResolution, 
+	static void BuildChunkData(const TArray<FVector>& Centers, const FVector& VoxelExtent, int32 ChunkGridResolution, 
 		OUT TArray<int32>& OutVoxelChunkIndices, OUT TArray<FBox>& OutChunkLocalBounds);
 	
 	// Builds a median-split binary BVH over Voxel Centers.
-	static void BuildBVHData(const TArray<FVector>& Centers, int32 MaxVoxelsPerLeaf, 
+	static void BuildBVHData(const TArray<FVector>& Centers, const FVector& VoxelExtent, int32 MaxVoxelsPerLeaf, 
 		OUT TArray<FWPVoxelBVHNode>& OutNodes);
 	
 	// Traverses the baked BVH and collects this frame's active-region Boxes for one Component.
 	static void CollectActiveBoundsBVH(const TArray<FWPVoxelBVHNode>& Nodes, UPrimitiveComponent* Comp, const FVector& Surface, const FVector& Normal, 
 		OUT TArray<FBox>& OutBoxes);
+	
+	// Same traversal as CollectActiveBoundsBVH, but records every visited Node and its classification, not just the adopted ones. Debug-draw only.
+	static void CollectDebugBVHNodes(const TArray<FWPVoxelBVHNode>& Nodes, UPrimitiveComponent* Comp,
+		const FVector& Surface, const FVector& Normal, OUT TArray<FBox>& OutBoxes, OUT TArray<EWPVoxelPlaneClass>& OutClasses);
 	
 	// Merges Chunk Boxes that touch on the fixed grid into fewer, larger Boxes to reduce Scene Query count.
 	static void MergeAdjacentChunkBounds(const TArray<FBox>& ChunkWorldBounds, int32 GridResolution, 
@@ -61,6 +65,10 @@ private:
 		const FVector& Surface, const FVector& Normal);
 	
 	// Recursive median-split-by-longest-axis BVH construction.
-	static int32 BuildVoxelBVHNode(const TArray<FVector>& Centers, TArray<int32>& VoxelOrder, int32 Start, int32 Count, int32 MaxVoxelsPerLeaf, 
-		OUT TArray<FWPVoxelBVHNode>& OutNodes);
+	static int32 BuildVoxelBVHNode(const TArray<FVector>& Centers, const FVector& VoxelExtent, TArray<int32>& VoxelOrder, 
+		int32 Start, int32 Count, int32 MaxVoxelsPerLeaf, OUT TArray<FWPVoxelBVHNode>& OutNodes);
+	
+	static void CollectDebugBVHNodesRecursive(const TArray<FWPVoxelBVHNode>& Nodes, int32 NodeIndex,
+		const FTransform& CompTransform, const FVector& Surface, const FVector& Normal,
+		OUT TArray<FBox>& OutBoxes, OUT TArray<EWPVoxelPlaneClass>& OutClasses);
 };

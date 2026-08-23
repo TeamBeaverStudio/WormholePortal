@@ -6,8 +6,8 @@
 #include "Engine/OverlapResult.h"
 #include "Voxel/WPVoxelData.h"
 
-void FWPVoxelOverlapAccelerator::BuildChunkData(const TArray<FVector>& Centers, int32 ChunkGridResolution,
-	OUT TArray<int32>& OutVoxelChunkIndices, OUT TArray<FBox>& OutChunkLocalBounds)
+void FWPVoxelOverlapAccelerator::BuildChunkData(const TArray<FVector>& Centers, const FVector& VoxelExtent,
+	int32 ChunkGridResolution, TArray<int32>& OutVoxelChunkIndices, TArray<FBox>& OutChunkLocalBounds)
 {
 	OutVoxelChunkIndices.Reset();
 	
@@ -38,12 +38,13 @@ void FWPVoxelOverlapAccelerator::BuildChunkData(const TArray<FVector>& Centers, 
 		const int32 ChunkIndex = (CellX * Resolution + CellY) * Resolution + CellZ;
 		
 		OutVoxelChunkIndices.Add(ChunkIndex);
-		OutChunkLocalBounds[ChunkIndex] += Center;
+		// Accumulates each Voxel's actual physical volume, not just its center point.
+		OutChunkLocalBounds[ChunkIndex] += FBox(Center - VoxelExtent, Center + VoxelExtent);
 	}
 }
 
-void FWPVoxelOverlapAccelerator::BuildBVHData(const TArray<FVector>& Centers, int32 MaxVoxelsPerLeaf,
-	OUT TArray<FWPVoxelBVHNode>& OutNodes)
+void FWPVoxelOverlapAccelerator::BuildBVHData(const TArray<FVector>& Centers, const FVector& VoxelExtent,
+	int32 MaxVoxelsPerLeaf, TArray<FWPVoxelBVHNode>& OutNodes)
 {
 	OutNodes.Reset();
 	if (Centers.IsEmpty()) return;
@@ -51,19 +52,60 @@ void FWPVoxelOverlapAccelerator::BuildBVHData(const TArray<FVector>& Centers, in
 	TArray<int32> VoxelOrder;
 	VoxelOrder.Reserve(Centers.Num());
 	for (int32 i = 0; i < Centers.Num(); ++i) VoxelOrder.Add(i);
-	BuildVoxelBVHNode(Centers, VoxelOrder, 0, Centers.Num(), FMath::Max(1, MaxVoxelsPerLeaf), OutNodes);
+	BuildVoxelBVHNode(Centers, VoxelExtent, VoxelOrder, 0, Centers.Num(), FMath::Max(1, MaxVoxelsPerLeaf), OutNodes);
+}
+
+int32 FWPVoxelOverlapAccelerator::BuildVoxelBVHNode(const TArray<FVector>& Centers, const FVector& VoxelExtent,
+	TArray<int32>& VoxelOrder, int32 Start, int32 Count, int32 MaxVoxelsPerLeaf, TArray<FWPVoxelBVHNode>& OutNodes)
+{
+	FBox Bounds(ForceInit);
+	for (int32 i = Start; i < Start + Count; ++i)
+	{
+		const FVector& Center = Centers[VoxelOrder[i]];
+		Bounds += FBox(Center - VoxelExtent, Center + VoxelExtent);
+	}
+	
+	const int32 NodeIndex = OutNodes.Add(FWPVoxelBVHNode());
+	OutNodes[NodeIndex].BoundsMin = Bounds.Min;
+	OutNodes[NodeIndex].BoundsMax = Bounds.Max;
+	
+	if (Count <= MaxVoxelsPerLeaf) return NodeIndex;
+	
+	const FVector Extent = Bounds.GetSize();
+	int32 Axis = 0;														// X-Axis
+	if (Extent.Y >= Extent.X && Extent.Y >= Extent.Z) Axis = 1;			// Y-Axis
+	else if (Extent.Z >= Extent.X && Extent.Z >= Extent.Y) Axis = 2;	// Z-Axis
+	
+	TArrayView<int32> Range(VoxelOrder.GetData() + Start, Count);
+	Algo::Sort(Range, [&Centers, Axis](int32 A, int32 B){return Centers[A][Axis] < Centers[B][Axis];});
+	const int32 Mid = Count / 2;
+	// 재귀 호출 두 곳에도 VoxelExtent를 그대로 전달
+	const int32 LeftIndex = BuildVoxelBVHNode(Centers, VoxelExtent, VoxelOrder, Start, Mid, MaxVoxelsPerLeaf, OutNodes);
+	const int32 RightIndex = BuildVoxelBVHNode(Centers, VoxelExtent, VoxelOrder, Start + Mid, Count - Mid, MaxVoxelsPerLeaf, OutNodes);
+	
+	// OutNodes.Add may reallocate during recursion, so child indices are written after the recursive calls return.
+	OutNodes[NodeIndex].LeftChildIndex = LeftIndex;
+	OutNodes[NodeIndex].RightChildIndex = RightIndex;
+	return NodeIndex;
 }
 
 void FWPVoxelOverlapAccelerator::CollectActiveBoundsBVH(const TArray<FWPVoxelBVHNode>& Nodes, UPrimitiveComponent* Comp,
-	const FVector& Surface, const FVector& Normal, OUT TArray<FBox>& OutBoxes)
+                                                        const FVector& Surface, const FVector& Normal, OUT TArray<FBox>& OutBoxes)
 {
 	if (!IsValid(Comp) || Nodes.IsEmpty()) return;
 	
 	CollectActiveBoundsBVHRecursive(Nodes, 0, Comp->GetComponentTransform(), Surface, Normal, OutBoxes);
 }
 
+void FWPVoxelOverlapAccelerator::CollectDebugBVHNodes(const TArray<FWPVoxelBVHNode>& Nodes, UPrimitiveComponent* Comp,
+	const FVector& Surface, const FVector& Normal, TArray<FBox>& OutBoxes, TArray<EWPVoxelPlaneClass>& OutClasses)
+{
+	if (!IsValid(Comp) || Nodes.IsEmpty()) return;
+	CollectDebugBVHNodesRecursive(Nodes, 0, Comp->GetComponentTransform(), Surface, Normal, OutBoxes, OutClasses);
+}
+
 void FWPVoxelOverlapAccelerator::CollectActiveBoundsBVHRecursive(const TArray<FWPVoxelBVHNode>& Nodes, int32 NodeIndex,
-	const FTransform& CompTransform, const FVector& Surface, const FVector& Normal, OUT TArray<FBox>& OutBoxes)
+                                                                 const FTransform& CompTransform, const FVector& Surface, const FVector& Normal, OUT TArray<FBox>& OutBoxes)
 {
 	if (!Nodes.IsValidIndex(NodeIndex)) return;
 	
@@ -239,31 +281,24 @@ EWPVoxelPlaneClass FWPVoxelOverlapAccelerator::ClassifyBoxAgainstPlane(const FVe
 	return EWPVoxelPlaneClass::Intersecting;
 }
 
-int32 FWPVoxelOverlapAccelerator::BuildVoxelBVHNode(const TArray<FVector>& Centers, TArray<int32>& VoxelOrder,
-	int32 Start, int32 Count, int32 MaxVoxelsPerLeaf, TArray<FWPVoxelBVHNode>& OutNodes)
+void FWPVoxelOverlapAccelerator::CollectDebugBVHNodesRecursive(const TArray<FWPVoxelBVHNode>& Nodes, int32 NodeIndex,
+	const FTransform& CompTransform, const FVector& Surface, const FVector& Normal, TArray<FBox>& OutBoxes,
+	TArray<EWPVoxelPlaneClass>& OutClasses)
 {
-	FBox Bounds(ForceInit);
-	for (int32 i = Start; i < Start + Count; ++i) Bounds += Centers[VoxelOrder[i]];
+	if (!Nodes.IsValidIndex(NodeIndex)) return;
 	
-	const int32 NodeIndex = OutNodes.Add(FWPVoxelBVHNode());
-	OutNodes[NodeIndex].BoundsMin = Bounds.Min;
-	OutNodes[NodeIndex].BoundsMax = Bounds.Max;
+	const FWPVoxelBVHNode& Node = Nodes[NodeIndex];
+	const EWPVoxelPlaneClass Classification = ClassifyBoxAgainstPlane(Node.BoundsMin, Node.BoundsMax, CompTransform, Surface, Normal);
 	
-	if (Count <= MaxVoxelsPerLeaf) return NodeIndex;
+	// 실제 알고리즘과 달리, 여기서는 채택 여부와 상관없이 방문한 즉시 기록합니다.
+	// Unlike the real algorithm, this records the Node immediately upon visiting it, regardless of whether it's adopted.
+	OutBoxes.Add(FBox(Node.BoundsMin, Node.BoundsMax).TransformBy(CompTransform));
+	OutClasses.Add(Classification);
 	
-	const FVector Extent = Bounds.GetSize();
-	int32 Axis = 0;														// X-Axis
-	if (Extent.Y >= Extent.X && Extent.Y >= Extent.Z) Axis = 1;			// Y-Axis
-	else if (Extent.Z >= Extent.X && Extent.Z >= Extent.Y) Axis = 2;	// Z-Axis
-	
-	TArrayView<int32> Range(VoxelOrder.GetData() + Start, Count);
-	Algo::Sort(Range, [&Centers, Axis](int32 A, int32 B){return Centers[A][Axis] < Centers[B][Axis];});
-	const int32 Mid = Count / 2;
-	const int32 LeftIndex = BuildVoxelBVHNode(Centers, VoxelOrder, Start, Mid, MaxVoxelsPerLeaf, OutNodes);
-	const int32 RightIndex = BuildVoxelBVHNode(Centers, VoxelOrder, Start + Mid, Count - Mid, MaxVoxelsPerLeaf, OutNodes);
-	
-	// OutNodes.Add may reallocate during recursion, so child indices are written after the recursive calls return.
-	OutNodes[NodeIndex].LeftChildIndex = LeftIndex;
-	OutNodes[NodeIndex].RightChildIndex = RightIndex;
-	return NodeIndex;
+	const bool bLeaf = Node.LeftChildIndex == INDEX_NONE;
+	if (Classification == EWPVoxelPlaneClass::Intersecting && !bLeaf)
+	{
+		CollectDebugBVHNodesRecursive(Nodes, Node.LeftChildIndex, CompTransform, Surface, Normal, OutBoxes, OutClasses);
+		CollectDebugBVHNodesRecursive(Nodes, Node.RightChildIndex, CompTransform, Surface, Normal, OutBoxes, OutClasses);
+	}
 }

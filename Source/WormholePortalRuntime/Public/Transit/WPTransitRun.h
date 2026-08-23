@@ -15,6 +15,7 @@ class UPrimitiveComponent;
 class UWPTransitComponent;
 class AWormholePortalActor;
 class FWormholeTransitJointCallback;
+enum class EWPVoxelPlaneClass : uint8;
 
 /**
  * @brief Runtime state for a pair of Voxel Bodies used by one Transit.
@@ -65,6 +66,14 @@ struct FWPVoxelPair
 	/// Overlap targets approximately relayed in the previous frame under Chunk/BVH Mode. Serves as the basis for next frame's diff.
 	TArray<TWeakObjectPtr<UPrimitiveComponent>> LastMasterOverlaps;
 	TArray<TWeakObjectPtr<UPrimitiveComponent>> LastTwinOverlaps;
+	
+	// Debug-draw only. Holds the approximate Boxes computed by the last Update() call, verbatim, for visualization.
+	TArray<FBox> DebugMasterActiveBounds;
+	TArray<FBox> DebugTwinActiveBounds;
+	
+	// BVH Debug Draw only. Parallel to the two arrays above. Stays empty in Chunk Mode.
+	TArray<EWPVoxelPlaneClass> DebugMasterBVHClasses;
+	TArray<EWPVoxelPlaneClass> DebugTwinBVHClasses;
 	
 	// Indicates whether the Master and Twin Physics Bodies use the Voxel BodySetup.
 	bool bUsingVoxelBody = false;

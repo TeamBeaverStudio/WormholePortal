@@ -377,9 +377,21 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wormhole Portal|Transit", meta = (AllowPrivateAccess = "true"))
 	bool										bTransitEnabled = true;
 	
-	// Controls whether Transit debug geometry is displayed for the Actor that owns this Component.
+	// Controls whether Voxel Shape Blocking state (green=active, red=inactive) is displayed.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wormhole Portal|Debug", meta = (AllowPrivateAccess = "true"))
-	bool										bDrawDebug = false;
+	bool										bDrawVoxelDebugBox = false;
+	
+	// Controls whether Chunk Overlap approximation Boxes are displayed. Meaningful only in Chunk Mode.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wormhole Portal|Debug", meta = (AllowPrivateAccess = "true"))
+	bool										bDrawChunkDebugBox = false;
+	
+	// Controls whether BVH Overlap approximation Boxes are displayed. Meaningful only in BVH Mode.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wormhole Portal|Debug", meta = (AllowPrivateAccess = "true"))
+	bool										bDrawBVHDebugBox = false;
+	
+	// Convenience toggle that enables every debug Box category above at once.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wormhole Portal|Debug", meta = (AllowPrivateAccess = "true"))
+	bool										bDrawAllDebugBox = false;
 
 	// Transit handling type applied to this Actor. Auto resolves it once from the Actor configuration at runtime.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wormhole Portal|Transit", meta = (AllowPrivateAccess = "true"))
@@ -402,7 +414,7 @@ private:
 	float										VoxelSize = 20.f;
 	
 	// Maximum number of Voxel Box Shapes generated for one Static Mesh.
-	UPROPERTY(EditAnywhere, Category = "Wormhole Portal|Voxel", meta = (ClampMin = "1", ClampMax = "2048", UIMin = "1", UIMax = "2048"))
+	UPROPERTY(EditAnywhere, Category = "Wormhole Portal|Voxel", meta = (ClampMin = "1", UIMin = "1"))
 	int32										MaxVoxelCount = 256;
 	
 	// Approximate Overlap generation strategy used for the compound Voxel Body during Crossing.

@@ -143,9 +143,24 @@ void FWPVoxel::Update(FWPTransitRun& Run, const FVector& SourceSurface, const FV
 			TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::CollectBVHBounds);
 			FWPVoxelOverlapAccelerator::CollectActiveBoundsBVH(VoxelData->VoxelBVHNodes, Pair.Master.Get(), SourceSurface, SourceNormal, MasterActiveBounds);
 			FWPVoxelOverlapAccelerator::CollectActiveBoundsBVH(VoxelData->VoxelBVHNodes, Pair.Twin.Get(), DestSurface, DestNormal, TwinActiveBounds);
+			
+			// Debug Draw shows the actual traversal including pruned Nodes, not just the optimized final result.
+			Pair.DebugMasterActiveBounds.Reset();
+			Pair.DebugMasterBVHClasses.Reset();
+			FWPVoxelOverlapAccelerator::CollectDebugBVHNodes(VoxelData->VoxelBVHNodes, Pair.Master.Get(), SourceSurface, SourceNormal, Pair.DebugMasterActiveBounds, Pair.DebugMasterBVHClasses);
+			
+			Pair.DebugTwinActiveBounds.Reset();
+			Pair.DebugTwinBVHClasses.Reset();
+			FWPVoxelOverlapAccelerator::CollectDebugBVHNodes(VoxelData->VoxelBVHNodes, Pair.Twin.Get(), DestSurface, DestNormal, Pair.DebugTwinActiveBounds, Pair.DebugTwinBVHClasses);
 		}
 		else if (Pair.Mode == EWPVoxelOverlapMode::Chunk)
 		{
+			// Debug Draw shows each Chunk's own raw Box before merging, not the merged Box used for the query.
+			Pair.DebugMasterActiveBounds = MasterActiveBounds;
+			Pair.DebugTwinActiveBounds = TwinActiveBounds;
+			Pair.DebugMasterBVHClasses.Reset();
+			Pair.DebugTwinBVHClasses.Reset();
+			
 			TRACE_CPUPROFILER_EVENT_SCOPE(WPVoxel::MergeChunkBounds);
 			TArray<FBox> MergedMaster, MergedTwin;
 			FWPVoxelOverlapAccelerator::MergeAdjacentChunkBounds(MasterActiveBounds, VoxelData->ChunkGridResolution, MergedMaster);
@@ -153,6 +168,17 @@ void FWPVoxel::Update(FWPTransitRun& Run, const FVector& SourceSurface, const FV
 			MasterActiveBounds = MoveTemp(MergedMaster);
 			TwinActiveBounds = MoveTemp(MergedTwin);
 		}
+		else
+		{
+			Pair.DebugMasterActiveBounds.Reset();
+			Pair.DebugTwinActiveBounds.Reset();
+			Pair.DebugMasterBVHClasses.Reset();
+			Pair.DebugTwinBVHClasses.Reset();
+		}
+		
+		// Copied into the Pair before Relay so Debug Draw can use the exact Boxes that were queried.
+		Pair.DebugMasterActiveBounds = MasterActiveBounds;
+		Pair.DebugTwinActiveBounds = TwinActiveBounds;
 		
 		if (Pair.Mode == EWPVoxelOverlapMode::Chunk || Pair.Mode == EWPVoxelOverlapMode::BVH)
 		{
@@ -164,7 +190,7 @@ void FWPVoxel::Update(FWPTransitRun& Run, const FVector& SourceSurface, const FV
 	}
 }
 
-void FWPVoxel::DrawDebug(UWorld* World, const FWPTransitRun& Run)
+void FWPVoxel::DrawVoxelDebugBox(UWorld* World, const FWPTransitRun& Run)
 {
 	if (World == nullptr) return;
 	
@@ -198,6 +224,74 @@ void FWPVoxel::DrawDebug(UWorld* World, const FWPTransitRun& Run)
 		{
 			DrawVoxel(Pair.Master, VoxelData, Pair.MasterState);
 			DrawVoxel(Pair.Twin, VoxelData, Pair.TwinState);
+		}
+	}
+}
+
+void FWPVoxel::DrawChunkDebugBox(UWorld* World, const FWPTransitRun& Run)
+{
+	if (World == nullptr) return;
+	
+	auto DrawGridAndActive = [World](const UPrimitiveComponent* Comp, const UWPVoxelData* Data, const TArray<FBox>& ActiveBounds)
+	{
+		if (!IsValid(Comp) || !IsValid(Data)) return;
+		const FTransform CompTransform = Comp->GetComponentTransform();
+		
+		// Full grid, including empty Chunks, drawn dim gray to show the partition scheme itself.
+		for (const FBox& LocalBox : Data->ChunkLocalBounds)
+		{
+			if (!LocalBox.IsValid) continue;
+			const FBox WorldBox = LocalBox.TransformBy(CompTransform);
+			DrawDebugBox(World, WorldBox.GetCenter(), WorldBox.GetExtent(), FQuat::Identity, FColor(80, 80, 80), false, 0.0f, 0, 1.0f);
+		}
+		
+		// Active Chunks: only ones with a Voxel this frame, drawn bright Cyan at their raw pre-merge size.
+		for (const FBox& Box : ActiveBounds)
+		{
+			if (!Box.IsValid) continue;
+			DrawDebugBox(World, Box.GetCenter(), Box.GetExtent(), FQuat::Identity, FColor::Cyan, false, 0.0f, 0, 3.0f);
+		}
+	};
+	
+	for (const FWPVoxelPair& Pair : Run.VoxelPairs)
+	{
+		const UWPVoxelData* VoxelData = Pair.VoxelData.Get();
+		if (Pair.bUsingVoxelBody && Pair.Mode == EWPVoxelOverlapMode::Chunk && IsValid(VoxelData))
+		{
+			DrawGridAndActive(Pair.Master.Get(), VoxelData, Pair.DebugMasterActiveBounds);
+			DrawGridAndActive(Pair.Twin.Get(), VoxelData, Pair.DebugTwinActiveBounds);
+		}
+	}
+}
+
+void FWPVoxel::DrawBVHDebugBox(UWorld* World, const FWPTransitRun& Run)
+{
+	if (World == nullptr) return;
+	
+	auto ClassColor = [](EWPVoxelPlaneClass Classification)
+	{
+		switch (Classification)
+		{
+		case EWPVoxelPlaneClass::Inside: return FColor::Green;		// 채택됨
+		case EWPVoxelPlaneClass::Outside: return FColor::Red;		// 가지치기로 버려짐
+		default: return FColor::Yellow;								// 더 파고듦
+		}
+	};
+	
+	auto DrawNodes = [World, ClassColor](const TArray<FBox>& Boxes, const TArray<EWPVoxelPlaneClass>& Classes)
+	{
+		for (int32 Index = 0; Index < Boxes.Num(); ++Index)
+		{
+			DrawDebugBox(World, Boxes[Index].GetCenter(), Boxes[Index].GetExtent(), FQuat::Identity, ClassColor(Classes[Index]), false, 0.0f, 0, 2.0f);
+		}
+	};
+	
+	for (const FWPVoxelPair& Pair : Run.VoxelPairs)
+	{
+		if (Pair.bUsingVoxelBody && Pair.Mode == EWPVoxelOverlapMode::BVH)
+		{
+			DrawNodes(Pair.DebugMasterActiveBounds, Pair.DebugMasterBVHClasses);
+			DrawNodes(Pair.DebugTwinActiveBounds, Pair.DebugTwinBVHClasses);
 		}
 	}
 }
@@ -398,6 +492,8 @@ void FWPVoxel::UpdatePrimitive(UPrimitiveComponent* Comp, const UWPVoxelData* Vo
 	bool bFilterChanged = false;
 	// Only in Chunk Mode, prepares one empty Box per Chunk to accumulate this frame's active Voxel Centers.
 	const bool bAccumulateChunks = Mode == EWPVoxelOverlapMode::Chunk && VoxelData->VoxelChunkIndices.Num() == Centers.Num();
+	// World-space Extent, including the Component's Scale, computed once outside the loop.
+	const FVector WorldVoxelExtent = VoxelData->VoxelExtent * CompTransform.GetScale3D().GetAbs();
 	if (bAccumulateChunks)
 	{
 		OutActiveChunkBounds.Init(FBox(ForceInit), VoxelData->ChunkLocalBounds.Num());
@@ -415,7 +511,7 @@ void FWPVoxel::UpdatePrimitive(UPrimitiveComponent* Comp, const UWPVoxelData* Vo
 			// approximation, so this runs before the early continue below.
 			if (bAccumulateChunks && bActive)
 			{
-				OutActiveChunkBounds[VoxelData->VoxelChunkIndices[VoxelIndex]] += WorldCenter;
+				OutActiveChunkBounds[VoxelData->VoxelChunkIndices[VoxelIndex]] += FBox(WorldCenter - WorldVoxelExtent, WorldCenter + WorldVoxelExtent);
 			}
 			
 			if (InOutState[VoxelIndex] == static_cast<uint8>(bActive)) continue;

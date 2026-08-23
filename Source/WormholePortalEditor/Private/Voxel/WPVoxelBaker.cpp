@@ -374,8 +374,8 @@ UWPVoxelData* FWPVoxelBaker::BakePrimitive(UPrimitiveComponent* SourcePrimitive,
 	// Both Chunk and BVH data are always baked regardless of the selected Mode, so switching Mode at
 	// Runtime never requires re-baking.
 	Data->ChunkGridResolution = ChunkGridResolution;
-	FWPVoxelOverlapAccelerator::BuildChunkData(Centers, ChunkGridResolution, OUT Data->VoxelChunkIndices, OUT Data->ChunkLocalBounds);
-	FWPVoxelOverlapAccelerator::BuildBVHData(Centers, MaxVoxelsPerBVHLeaf, OUT Data->VoxelBVHNodes);
+	FWPVoxelOverlapAccelerator::BuildChunkData(Centers, Data->VoxelExtent, ChunkGridResolution, OUT Data->VoxelChunkIndices, OUT Data->ChunkLocalBounds);
+	FWPVoxelOverlapAccelerator::BuildBVHData(Centers, Data->VoxelExtent, MaxVoxelsPerBVHLeaf, OUT Data->VoxelBVHNodes);
 	
 	Data->MarkPackageDirty();
 	Data->PostEditChange();
