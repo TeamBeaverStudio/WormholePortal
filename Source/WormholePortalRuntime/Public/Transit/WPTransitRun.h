@@ -15,6 +15,7 @@ class UPrimitiveComponent;
 class UWPTransitComponent;
 class AWormholePortalActor;
 class FWormholeTransitJointCallback;
+enum class EWPVoxelPlaneClass : uint8;
 
 /**
  * @brief Runtime state for a pair of Voxel Bodies used by one Transit.
@@ -40,6 +41,12 @@ struct FWPVoxelPair
 	UPROPERTY(Transient)
 	TObjectPtr<UBodySetup> OriginTwinBodySetup;
 	
+	// Master's WPPortalCollision Response before Voxel Body swap, restored when Transit ends.
+	ECollisionResponse OriginMasterPCR = ECR_MAX;
+
+	// Twin's WPPortalCollision Response before Voxel Body swap, restored when Transit ends.
+	ECollisionResponse OriginTwinPCR = ECR_MAX;
+	
 	// Editor Bake result used by the Master and Twin.
 	UPROPERTY(Transient)
 	TObjectPtr<UWPVoxelData> VoxelData;
@@ -49,6 +56,24 @@ struct FWPVoxelPair
 
 	// Current Query and Physics enabled state for each Twin Voxel Shape.
 	TArray<uint8> TwinState;
+	
+	// Overlap approximation Mode copied from the owning Transit Component when GatherPairs runs.
+	EWPVoxelOverlapMode Mode = EWPVoxelOverlapMode::Native;
+	
+	// Master's original GenerateOverlapEvents value before the Voxel Body swap, outside Native Mode. Restored on Reset.
+	bool bOriginGenerateOverlapEvents = false;
+	
+	/// Overlap targets approximately relayed in the previous frame under Chunk/BVH Mode. Serves as the basis for next frame's diff.
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> LastMasterOverlaps;
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> LastTwinOverlaps;
+	
+	// Debug-draw only. Holds the approximate Boxes computed by the last Update() call, verbatim, for visualization.
+	TArray<FBox> DebugMasterActiveBounds;
+	TArray<FBox> DebugTwinActiveBounds;
+	
+	// BVH Debug Draw only. Parallel to the two arrays above. Stays empty in Chunk Mode.
+	TArray<EWPVoxelPlaneClass> DebugMasterBVHClasses;
+	TArray<EWPVoxelPlaneClass> DebugTwinBVHClasses;
 	
 	// Indicates whether the Master and Twin Physics Bodies use the Voxel BodySetup.
 	bool bUsingVoxelBody = false;

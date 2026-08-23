@@ -352,8 +352,6 @@ private:
 	/** Returns a stable UObject FName that does not depend on mutable labels or authoring tags. */
 	FName ResolveStableSelectorName() const;
 
-	void ApplyPortalTraceChannelResponses() const;
-
 	UFUNCTION(BlueprintCallable, Category = "Wormhole Portal|Transit")
 	void OnPortalTriggerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 

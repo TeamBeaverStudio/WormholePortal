@@ -27,6 +27,7 @@
 #include "Voxel/WPVoxelData.h"
 #include "WPSettings.h"
 #include "Transit/WPTransitComponent.h"
+#include "Voxel/WPVoxelOverlapAccelerator.h"
 
 #define LOCTEXT_NAMESPACE "WPVoxelBaker"
 
@@ -41,8 +42,7 @@ bool FWPVoxelBaker::Bake(UWPTransitComponent* TransitComp, FText& OutMessage)
 	const UWPSettings* Settings = GetDefault<UWPSettings>();
 	FString GeneratedRootPath;
 	FString PathError;
-	if (!IsValid(Settings)
-		|| !Settings->TryResolveGeneratedVoxelPath(GeneratedRootPath, PathError))
+	if (!IsValid(Settings) || !Settings->TryResolveGeneratedVoxelPath(GeneratedRootPath, PathError))
 	{
 		if (PathError.IsEmpty())
 		{
@@ -52,9 +52,9 @@ bool FWPVoxelBaker::Bake(UWPTransitComponent* TransitComp, FText& OutMessage)
 		return false;
 	}
 	
-	if (TransitComp->VoxelSize <= KINDA_SMALL_NUMBER || TransitComp->MaxVoxelCount < 1 || TransitComp->MaxVoxelCount > 512)
+	if (TransitComp->VoxelSize <= KINDA_SMALL_NUMBER || TransitComp->MaxVoxelCount < 1)
 	{
-		OutMessage = LOCTEXT("Invalid Settings", "Voxel Size is bigger than 0, MaxVoxel Count range is 1 to 512");
+		OutMessage = LOCTEXT("Invalid Settings", "Voxel Size is bigger than 0");
 		return false;
 	}
 	
@@ -84,6 +84,8 @@ bool FWPVoxelBaker::Bake(UWPTransitComponent* TransitComp, FText& OutMessage)
 			GeneratedRootPath,
 			TransitComp->VoxelSize,
 			TransitComp->MaxVoxelCount,
+			TransitComp->ChunkGridResolution,
+			TransitComp->MaxVoxelsPerBVHLeaf,
 			OUT CreatedData,
 			OUT PrimitiveMessage);
 		if (!IsValid(Data))
@@ -239,13 +241,9 @@ void FWPVoxelBaker::RollbackData(const TArray<UWPVoxelData*>& CreatedData)
 	}
 }
 
-UWPVoxelData* FWPVoxelBaker::BakePrimitive(
-	UPrimitiveComponent* SourcePrimitive,
-	const FString& GeneratedRootPath,
-	float RequestedSize,
-	int32 MaxVoxelCount,
-	TArray<UWPVoxelData*>& OutCreatedData,
-	FText& OutMessage)
+UWPVoxelData* FWPVoxelBaker::BakePrimitive(UPrimitiveComponent* SourcePrimitive, const FString& GeneratedRootPath,
+	float RequestedSize, int32 MaxVoxelCount, int32 ChunkGridResolution, int32 MaxVoxelsPerBVHLeaf,
+	TArray<UWPVoxelData*>& OutCreatedData, FText& OutMessage)
 {
 	if (!IsValid(SourcePrimitive))
 	{
@@ -309,7 +307,7 @@ UWPVoxelData* FWPVoxelBaker::BakePrimitive(
 	}
 	
 	const FString BakeResultHash = MakeResultHash(Centers, FinalVoxelSize);
-	const FString BakeKey = MakeKey(SourcePrimitive, SourceAssetHash, RequestedSize, MaxVoxelCount, BakeResultHash);
+	const FString BakeKey = MakeKey(SourcePrimitive, SourceAssetHash, RequestedSize, MaxVoxelCount, ChunkGridResolution, MaxVoxelsPerBVHLeaf, BakeResultHash);
 	
 	if (BakeKey.IsEmpty())
 	{
@@ -362,8 +360,8 @@ UWPVoxelData* FWPVoxelBaker::BakePrimitive(
 	Data->SourceBodyGuid = IsValid(SourceMesh) ? SourceBodySetup->BodySetupGuid : FGuid();
 	Data->SourceShapeClass = SourceShapeClass;
 	Data->SourceShapeSize = SourceShapeSize;
-	
-	Data->VoxelCenters = MoveTemp(Centers);
+	Data->VoxelCount = Centers.Num();
+	Data->VoxelCenters = Centers;
 	Data->VoxelExtent = FVector(FinalVoxelSize * 0.5f);
 	Data->VoxelSize = FinalVoxelSize;
 	Data->RequestedVoxelSize = RequestedSize;
@@ -372,6 +370,12 @@ UWPVoxelData* FWPVoxelBaker::BakePrimitive(
 	Data->BakerVersion = CurrentBakeVersion;
 	Data->BakeResultHash = BakeResultHash;
 	Data->BakeKey = BakeKey;
+	
+	// Both Chunk and BVH data are always baked regardless of the selected Mode, so switching Mode at
+	// Runtime never requires re-baking.
+	Data->ChunkGridResolution = ChunkGridResolution;
+	FWPVoxelOverlapAccelerator::BuildChunkData(Centers, Data->VoxelExtent, ChunkGridResolution, OUT Data->VoxelChunkIndices, OUT Data->ChunkLocalBounds);
+	FWPVoxelOverlapAccelerator::BuildBVHData(Centers, Data->VoxelExtent, MaxVoxelsPerBVHLeaf, OUT Data->VoxelBVHNodes);
 	
 	Data->MarkPackageDirty();
 	Data->PostEditChange();
@@ -597,8 +601,10 @@ FString FWPVoxelBaker::MakeResultHash(const TArray<FVector>& Centers, float Fina
 	return LexToString(HashBuilder.Finalize());
 }
 
-FString FWPVoxelBaker::MakeKey(const UPrimitiveComponent* SourcePrimitive, const FString& SourceAssetHash, float RequestedSize,
-	int32 MaxVoxelCount, const FString& BakeResultHash)
+
+FString FWPVoxelBaker::MakeKey(const UPrimitiveComponent* SourcePrimitive, const FString& SourceAssetHash,
+	float RequestedSize, int32 MaxVoxelCount, int32 ChunkGridResolution, int32 MaxVoxelsPerBVHLeaf,
+	const FString& BakeResultHash)
 {
 	FString SourceKey;
 	if (const UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(SourcePrimitive))
@@ -627,8 +633,8 @@ FString FWPVoxelBaker::MakeKey(const UPrimitiveComponent* SourcePrimitive, const
 	}
 	
 	const uint32 RequestedSizeBits = FMath::AsUInt(RequestedSize);
-	const FString KeySource = FString::Printf(TEXT("%s|%08X|%d|%d|%s"),
-		*SourceKey, RequestedSizeBits, MaxVoxelCount, CurrentBakeVersion, *BakeResultHash);
+	const FString KeySource = FString::Printf(TEXT("%s|%08X|%d|%d|%d|%d|%s"),
+		*SourceKey, RequestedSizeBits, MaxVoxelCount, ChunkGridResolution, MaxVoxelsPerBVHLeaf, CurrentBakeVersion, *BakeResultHash);
 	
 	const FTCHARToUTF8 Utf8Key(*KeySource);
 	return LexToString(FIoHash::HashBuffer(Utf8Key.Get(), static_cast<uint64>(Utf8Key.Length())));

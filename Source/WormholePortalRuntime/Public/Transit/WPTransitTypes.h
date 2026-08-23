@@ -19,6 +19,19 @@ enum class EWPTransitCenter : uint8
 	ActorOBBCenter UMETA(DisplayName = "Actor OBB Center")		// Uses the Actor-space OBB center computed from all Transit target Primitives.
 };
 
+// Approximation strategy used to generate Overlap Events for the compound Voxel Body.
+// Native keeps the engine's original per-Shape UpdateOverlaps behavior, including its cost.
+UENUM(BlueprintType)
+enum class EWPVoxelOverlapMode : uint8
+{
+	Native		UMETA(DisplayName = "Native (No Acceleration)"),
+	Disabled	UMETA(DisplayName = "Disabled (No Overlap Events)"),
+	Chunk		UMETA(DisplayName = "Chunk (Uniform Grid)"),
+	BVH			UMETA(DisplayName = "BVH (Bounding Volume Hierarchy)"),
+	
+	MAX			UMETA(Hidden)
+};
+
 /**
  * @brief Transit handling type applied to an Actor.
  *

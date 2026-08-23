@@ -7,6 +7,8 @@
 class UBodySetup;
 class UPrimitiveComponent;
 class UWorld;
+class UWPVoxelData;
+enum class EWPVoxelOverlapMode : uint8;
 
 struct FWPTransitRun;
 struct FWPVoxelPair;
@@ -30,12 +32,14 @@ public:
 	static void Update(FWPTransitRun& Run, const FVector& SourceSurface, 
 		const FVector& SourceNormal, const FVector& DestSurface, const FVector& DestNormal);
 	
-	/**
- 	 * @brief Draws the current Master and Twin Voxel Shape states for an active Run.
- 	 * @param World World used for transient debug drawing.
- 	 * @param Run Transit Run containing the Voxel Pairs and current Shape states.
- 	 */
-	static void DrawDebug(UWorld* World, const FWPTransitRun& Run);
+	// Draws the current Master/Twin Voxel Shape Blocking states for an active Run.
+	static void DrawVoxelDebugBox(UWorld* World, const FWPTransitRun& Run);
+	
+	// Draws the last Chunk Overlap approximation Boxes computed by Update() for an active Run.
+	static void DrawChunkDebugBox(UWorld* World, const FWPTransitRun& Run);
+	
+	// Draws the last BVH Overlap approximation Boxes computed by Update() for an active Run.
+	static void DrawBVHDebugBox(UWorld* World, const FWPTransitRun& Run);
 	
 private:
 	// Reinitializes one Physics Body with a different collision definition.
@@ -47,7 +51,9 @@ private:
 	// Restores one Master/Twin Pair to its original BodySetups.
 	static void ResetPair(FWPVoxelPair& Pair);
 	
-	// Enables or disables a Component's Voxel Shapes relative to the specified plane.
-	static void UpdatePrimitive(UPrimitiveComponent* Comp, const TArray<FVector>& Centers, 
-		const FVector& Surface, const FVector& Normal, TArray<uint8>& InOutState);
+	// Enables or disables a Component's Voxel Shapes relative to the specified plane. In Chunk Mode, also
+	// accumulates each active Voxel's World Center into OutActiveChunkBounds, indexed by its owning Chunk.
+	static void UpdatePrimitive(UPrimitiveComponent* Comp, const UWPVoxelData* VoxelData, EWPVoxelOverlapMode Mode, 
+		const FVector& Surface, const FVector& Normal, 
+		OUT TArray<uint8>& InOutState, OUT TArray<FBox>& OutActiveChunkBounds);
 };

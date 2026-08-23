@@ -6,7 +6,7 @@
 #include "Modules/ModuleManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
-#include "WPPortalTraceChannelConfig.h"
+#include "WPPortalChannelConfig.h"
 #include "Containers/Ticker.h"
 
 class FSpawnTabArgs;
@@ -23,17 +23,20 @@ public:
 	static const FName TransitManagerTabName;
 
 private:
-	/** These functions should eventually be extracted into a dedicated Portal Trace Channel notification class. */
-	void ValidatePortalTraceChannel();
-	void ShowPortalTraceChannelNotification(FWPPortalTraceChannelConfig::EStatus Status);
+	/** These functions should eventually be extracted into a dedicated Portal Channel notification class. */
+	void ValidatePortalChannels();
+	void ShowPortalChannelNotification(
+		FWPPortalChannelConfig::EStatus TraceStatus,
+		FWPPortalChannelConfig::EStatus CollisionStatus);
+	
 	void ShowCompletionNotification(const FText& Message, SNotificationItem::ECompletionState CompletionState) const;
-	void AddPortalTraceChannelToProjectConfig();
+	void AddPortalChannelsToProjectConfig();
 	void OpenCollisionProjectSettings() const;
 	
-	void StartPortalTraceValidationTicker();
-	void StopPortalTraceValidationTicker();
-	bool TickPortalTraceValidation(float DeltaTime);
-	void DismissPortalTraceChannelNotification();
+	void StartPortalChannelValidationTicker();
+	void StopPortalChannelValidationTicker();
+	bool TickPortalChannelValidation(float DeltaTime);
+	void DismissPortalChannelNotification();
 
 	void RegisterLUTSettingsSync();
 	void UnregisterLUTSettingsSync();
@@ -67,8 +70,8 @@ private:
 	TSharedRef<SDockTab> SpawnTransitManagerTab(const FSpawnTabArgs& Args);
 	
 private:
-	TWeakPtr<SNotificationItem> PortalTraceChannelNotification;
-	FTSTicker::FDelegateHandle PortalTraceValidationTickerHandle;
+	TWeakPtr<SNotificationItem> PortalChannelNotification;
+	FTSTicker::FDelegateHandle PortalChannelValidationTickerHandle;
 	FDelegateHandle LUTSettingsChangedHandle;
 	FString LastSynchronizedLUTCookPath;
 };

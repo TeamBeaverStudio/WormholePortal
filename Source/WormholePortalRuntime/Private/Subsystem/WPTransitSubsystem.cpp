@@ -584,9 +584,20 @@ void UWPTransitSubsystem::UpdateRun(FWPTransitRun& Run)
 		return;
 	}
 	
-	if (IsValid(TransitComponent) && TransitComponent->bDrawDebug)
+	if (IsValid(TransitComponent))
 	{
-		FWPVoxel::DrawDebug(GetWorld(), Run);
+		if (TransitComponent->bDrawAllDebugBox || TransitComponent->bDrawVoxelDebugBox)
+		{
+			FWPVoxel::DrawVoxelDebugBox(GetWorld(), Run);
+		}
+		if (TransitComponent->bDrawAllDebugBox || TransitComponent->bDrawChunkDebugBox)
+		{
+			FWPVoxel::DrawChunkDebugBox(GetWorld(), Run);
+		}
+		if (TransitComponent->bDrawAllDebugBox || TransitComponent->bDrawBVHDebugBox)
+		{
+			FWPVoxel::DrawBVHDebugBox(GetWorld(), Run);
+		}
 	}
 }
 
