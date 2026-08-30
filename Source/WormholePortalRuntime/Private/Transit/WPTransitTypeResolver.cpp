@@ -384,8 +384,7 @@ void FWPTransitTypeResolver::GatherTransitStaticMeshes(const AActor* Actor, TArr
 {
 	if (!IsValid(Actor)) return;
 
-	TArray<UStaticMeshComponent*> StaticMeshes;
-	Actor->GetComponents<UStaticMeshComponent>(StaticMeshes);
+	TInlineComponentArray<UStaticMeshComponent*> StaticMeshes(Actor);
 	for (UStaticMeshComponent* StaticMesh : StaticMeshes)
 	{
 		// Template로 생성된 Twin과 같은 이름의 Component를 연결 대상으로 사용합니다.
